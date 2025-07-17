@@ -4,6 +4,7 @@ import { MobileHeader } from "@/components/mobile-header"
 import { QuickActions } from "@/components/quick-actions"
 import { SplitCard } from "@/components/split-card"
 import { ContributionProgress } from "@/components/contribution-progress"
+import { WalletConnect } from "@/components/wallet-connect"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
 import { ResponsiveInput } from "@/components/ui/responsive-input"
@@ -11,9 +12,12 @@ import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Wallet, ArrowUpRight, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { useWeb3 } from "@/contexts/web3-context"
 
 export default function HomePage() {
   const router = useRouter()
+  const { isConnected } = useWeb3()
+  
   const activeSplits = [
     {
       title: "Team Dinner at Sushi Place",
@@ -64,6 +68,9 @@ export default function HomePage() {
               </p>
             </div>
           </div>
+          
+          {/* Wallet Connection */}
+          <WalletConnect />
         </section>
 
         {/* Quick Actions - Priority section on mobile */}
@@ -184,10 +191,19 @@ export default function HomePage() {
           <p className="text-gray-600 text-lg">Split payments across different blockchains with your friends</p>
 
           <div className="space-y-4">
-            <Button onClick={() => router.push("/setup")}>Start a Split</Button>
+            <Button 
+              onClick={() => router.push("/setup")}
+              disabled={!isConnected}
+            >
+              {isConnected ? "Start a Split" : "Connect Wallet to Start"}
+            </Button>
 
-            <Button variant="outline" onClick={() => router.push("/contribute")}>
-              Contribute to a Split
+            <Button 
+              variant="outline" 
+              onClick={() => router.push("/contribute")}
+              disabled={!isConnected}
+            >
+              {isConnected ? "Contribute to a Split" : "Connect Wallet to Contribute"}
             </Button>
           </div>
         </section>
