@@ -63,19 +63,6 @@ export default function HomePage() {
                 Manage your splits and contributions across chains
               </p>
             </div>
-
-            {/* Wallet Status - Prominent on mobile */}
-            <Card className="sm:w-auto">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <Wallet className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-responsive-sm font-medium">Connected</p>
-                  <p className="text-responsive-xs text-muted-foreground">0x1234...5678</p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </section>
 
