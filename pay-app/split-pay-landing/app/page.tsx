@@ -4,7 +4,6 @@ import { MobileHeader } from "@/components/mobile-header"
 import { QuickActions } from "@/components/quick-actions"
 import { SplitCard } from "@/components/split-card"
 import { ContributionProgress } from "@/components/contribution-progress"
-import { WalletConnect } from "@/components/wallet-connect"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
 import { ResponsiveInput } from "@/components/ui/responsive-input"
@@ -12,12 +11,9 @@ import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Wallet, ArrowUpRight, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { useWeb3 } from "@/contexts/web3-context"
 
 export default function HomePage() {
   const router = useRouter()
-  const { isConnected } = useWeb3()
-  
   const activeSplits = [
     {
       title: "Team Dinner at Sushi Place",
@@ -67,37 +63,20 @@ export default function HomePage() {
                 Manage your splits and contributions across chains
               </p>
             </div>
+
+            {/* Wallet Status - Prominent on mobile */}
+            <Card className="sm:w-auto">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <Wallet className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-responsive-sm font-medium">Connected</p>
+                  <p className="text-responsive-xs text-muted-foreground">0x1234...5678</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          
-          {/* Wallet Connection */}
-          <WalletConnect />
-        </section>
-
-        {/* Ready to Split CTA - Moved up for better visibility */}
-        <section className="text-center space-y-4">
-          <Card className="border-2 border-dashed border-muted-foreground/25">
-            <CardContent className="p-6 sm:p-8">
-              <h3 className="text-responsive-xl font-semibold mb-2">Ready to split a new payment?</h3>
-              <p className="text-responsive-base text-muted-foreground mb-6">
-                Create a split in seconds and invite your friends to contribute
-              </p>
-              <ResponsiveButton size="lg" className="w-full sm:w-auto !bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white">
-                Create New Split
-              </ResponsiveButton>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-dashed border-muted-foreground/25">
-            <CardContent className="p-6 sm:p-8">
-              <h3 className="text-responsive-xl font-semibold mb-2">Want to join an existing split?</h3>
-              <p className="text-responsive-base text-muted-foreground mb-6">
-                Contribute to a payment split that someone else created
-              </p>
-              <ResponsiveButton size="lg" className="w-full sm:w-auto !bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white">
-                Join Existing Split
-              </ResponsiveButton>
-            </CardContent>
-          </Card>
         </section>
 
         {/* Quick Actions - Priority section on mobile */}
@@ -196,7 +175,20 @@ export default function HomePage() {
           </div>
         </section>
 
-
+        {/* Bottom CTA - Mobile optimized */}
+        <section className="text-center py-8">
+          <Card className="border-2 border-dashed border-muted-foreground/25">
+            <CardContent className="p-6 sm:p-8">
+              <h3 className="text-responsive-xl font-semibold mb-2">Ready to split a new payment?</h3>
+              <p className="text-responsive-base text-muted-foreground mb-6">
+                Create a split in seconds and invite your friends to contribute
+              </p>
+              <ResponsiveButton size="lg" className="w-full sm:w-auto">
+                Create New Split
+              </ResponsiveButton>
+            </CardContent>
+          </Card>
+        </section>
 
         {/* New Buttons Section */}
         <section className="text-center space-y-8">
@@ -205,19 +197,10 @@ export default function HomePage() {
           <p className="text-gray-600 text-lg">Split payments across different blockchains with your friends</p>
 
           <div className="space-y-4">
-            <Button 
-              onClick={() => router.push("/setup")}
-              disabled={!isConnected}
-            >
-              {isConnected ? "Start a Split" : "Connect Wallet to Start"}
-            </Button>
+            <Button onClick={() => router.push("/setup")}>Start a Split</Button>
 
-            <Button 
-              variant="outline" 
-              onClick={() => router.push("/contribute")}
-              disabled={!isConnected}
-            >
-              {isConnected ? "Contribute to a Split" : "Connect Wallet to Contribute"}
+            <Button variant="outline" onClick={() => router.push("/contribute")}>
+              Contribute to a Split
             </Button>
           </div>
         </section>
