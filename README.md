@@ -23,7 +23,7 @@ Split Pay lets anyone easily split group expenses. Everyone pays their share fro
 
 ### Prerequisites
 - Node.js 18+
-- Web3 wallet (MetaMask)
+- Web3 wallet
 
 ### Installation
 ```bash
