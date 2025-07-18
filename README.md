@@ -79,12 +79,14 @@ split-pay/
 - 🔄 LI.FI Integration
 - 🔄 Database
 
-## 🤝 Contributing
+## 🔮 Upcoming Features
 
-1. Fork the repo
-2. Create feature branch
-3. Make changes
-4. Submit PR
+- 📜 Split History - Track past splits and payments
+- 👤 User Profiles - Personalized accounts and preferences
+- 📱 QR Code to Join Split - Scan to join splits instantly
+- 🎨 Improved Interface - Enhanced UX/UI design
+- 💳 Simple Payment Without Splitting - Direct payment option
+
 
 ## 📄 License
 
@@ -92,4 +94,4 @@ MIT License
 
 ---
 
-**Made with ❤️ by the Split Pay Team**
+**Made with ❤️ from Chile by students**
