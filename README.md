@@ -12,6 +12,22 @@ Split Pay lets anyone easily split group expenses. Everyone pays their share fro
 - 🔐 Web3 wallet integration
 - 🎫 Simple token-based sharing
 
+## 🚧 Status
+
+- ✅ Frontend & Backend
+- ✅ Web3 Integration  
+- ✅ Token System
+- 🔄 LI.FI Integration
+- 🔄 Database
+
+## 🔮 Upcoming Features
+
+- 📜 Split History - Track past splits and payments
+- 👤 User Profiles - Personalized accounts and preferences
+- 📱 QR Code to Join Split - Scan to join splits instantly
+- 🎨 Improved Interface - Enhanced UX/UI design
+- 💳 Simple Payment Without Splitting - Direct payment option
+
 ## 🏗️ Tech Stack
 
 - **Frontend**: Next.js 15, React 19, Tailwind CSS
@@ -70,24 +86,6 @@ split-pay/
     ├── models/
     └── services/
 ```
-
-## 🚧 Status
-
-- ✅ Frontend & Backend
-- ✅ Web3 Integration  
-- ✅ Token System
-- 🔄 LI.FI Integration
-- 🔄 Database
-
-## 🔮 Upcoming Features
-
-- 📜 Split History - Track past splits and payments
-- 👤 User Profiles - Personalized accounts and preferences
-- 📱 QR Code to Join Split - Scan to join splits instantly
-- 🎨 Improved Interface - Enhanced UX/UI design
-- 💳 Simple Payment Without Splitting - Direct payment option
-
-
 ## 📄 License
 
 MIT License
