@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MobileHeader } from "@/components/mobile-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
 import { useRouter } from "next/navigation"
+import { apiService, CreateSplitData } from "@/lib/api"
+import { ethers } from "ethers"
 
 export default function CreateSplitPage() {
   const router = useRouter()
@@ -16,6 +18,95 @@ export default function CreateSplitPage() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [isWalletConnected, setIsWalletConnected] = useState(false)
+
+  // Función para conectar wallet
+  const connectWallet = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const accounts = await provider.send('eth_requestAccounts', [])
+        const network = await provider.getNetwork()
+        
+        setWalletAddress(accounts[0])
+        setIsWalletConnected(true)
+        
+        console.log('Wallet connected:', accounts[0])
+        console.log('Chain ID:', network.chainId)
+      } catch (error) {
+        console.error('Failed to connect wallet:', error)
+        setErrors({ wallet: 'Failed to connect wallet' })
+      }
+    } else {
+      setErrors({ wallet: 'Please install MetaMask or another Web3 wallet' })
+    }
+  }
+
+  // Verificar si ya hay una wallet conectada al cargar la página
+  const checkWalletConnection = async () => {
+    if (typeof window.ethereum !== 'undefined') {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum)
+        const accounts = await provider.listAccounts()
+        console.log('Checking wallet connection - Accounts found:', accounts.length)
+        
+        if (accounts.length > 0) {
+          const network = await provider.getNetwork()
+          const address = accounts[0].address
+          setWalletAddress(address)
+          setIsWalletConnected(true)
+          console.log('Wallet already connected:', address)
+          console.log('Chain ID:', network.chainId)
+        } else {
+          console.log('No accounts found - wallet not connected')
+          setWalletAddress(null)
+          setIsWalletConnected(false)
+        }
+      } catch (error) {
+        console.error('Error checking wallet connection:', error)
+        setWalletAddress(null)
+        setIsWalletConnected(false)
+      }
+    } else {
+      console.log('No ethereum provider found')
+      setWalletAddress(null)
+      setIsWalletConnected(false)
+    }
+  }
+
+  // Verificar conexión al cargar la página
+  useEffect(() => {
+    checkWalletConnection()
+    
+    // Escuchar cambios en la wallet
+    if (typeof window.ethereum !== 'undefined') {
+      const handleAccountsChanged = (accounts: string[]) => {
+        console.log('Accounts changed:', accounts)
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0])
+          setIsWalletConnected(true)
+        } else {
+          setWalletAddress(null)
+          setIsWalletConnected(false)
+        }
+      }
+
+      const handleChainChanged = (chainId: string) => {
+        console.log('Chain changed:', chainId)
+        // Recargar la página cuando cambie la red
+        window.location.reload()
+      }
+
+      window.ethereum.on('accountsChanged', handleAccountsChanged)
+      window.ethereum.on('chainChanged', handleChainChanged)
+
+      return () => {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged)
+        window.ethereum.removeListener('chainChanged', handleChainChanged)
+      }
+    }
+  }, [])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -45,31 +136,68 @@ export default function CreateSplitPage() {
   }
 
   const handleCreateSplit = async () => {
-    if (!validateForm()) return
+    console.log("=== handleCreateSplit called ===")
+    console.log("Form data:", formData)
+    console.log("Wallet address:", walletAddress)
+    console.log("Is wallet connected:", isWalletConnected)
+    console.log("Errors:", errors)
+    
+    if (!validateForm()) {
+      console.log("Form validation failed")
+      return
+    }
 
+    if (!isWalletConnected || !walletAddress) {
+      console.log("Wallet not connected or no address")
+      setErrors({ wallet: "Please connect your wallet first" })
+      return
+    }
+
+    console.log("All validations passed, proceeding with split creation")
     setIsLoading(true)
     try {
-      // TODO: Implement split creation logic
-      console.log("Creating split:", formData)
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Navigate to success page with split data
-      const params = new URLSearchParams({
+      // Crear el split usando el backend
+      const splitData: CreateSplitData = {
         name: formData.name,
-        amount: formData.amount,
-        participants: formData.participants,
-        description: formData.description
-      })
-      const successUrl = `/success?${params.toString()}`
-      console.log("About to navigate to:", successUrl)
-      console.log("Current URL before navigation:", window.location.href)
+        amount: parseFloat(formData.amount),
+        participants: parseInt(formData.participants),
+        description: formData.description,
+        creator: walletAddress,
+        creatorChain: "1" // Default to Ethereum mainnet
+      }
+
+      console.log("Creating split with data:", splitData)
+      console.log("Wallet address being sent:", walletAddress)
+      console.log("Is wallet connected:", isWalletConnected)
       
-      router.push(successUrl)
+      let response
+      try {
+        response = await apiService.createSplit(splitData)
+        console.log("API Response:", response)
+      } catch (apiError) {
+        console.error("API Error details:", apiError)
+        throw apiError
+      }
       
-      console.log("Navigation called, waiting for redirect...")
+      if (response.success && response.data) {
+        // Navigate to success page with split data
+        const params = new URLSearchParams({
+          token: response.data.token,
+          name: formData.name,
+          amount: formData.amount,
+          participants: formData.participants,
+          description: formData.description
+        })
+        const successUrl = `/success?${params.toString()}`
+        console.log("About to navigate to:", successUrl)
+        
+        router.push(successUrl)
+      } else {
+        throw new Error(response.message || "Failed to create split")
+      }
     } catch (error) {
       console.error("Error creating split:", error)
+      setErrors({ api: error instanceof Error ? error.message : "Failed to create split" })
     } finally {
       setIsLoading(false)
     }
@@ -209,15 +337,61 @@ export default function CreateSplitPage() {
                   </div>
                 )}
 
+                {/* Wallet Status */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <div className={`h-2 w-2 rounded-full ${isWalletConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className="text-sm font-medium">
+                      {isWalletConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
+                    </span>
+                  </div>
+                  {walletAddress && (
+                    <p className="text-xs text-blue-600 mt-1 font-mono">
+                      {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                    </p>
+                  )}
+                  {!isWalletConnected && (
+                    <div className="mt-2">
+                      <p className="text-xs text-blue-600 mb-2">
+                        Please connect your wallet to create a split
+                      </p>
+                      <button
+                        onClick={connectWallet}
+                        className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                      >
+                        Connect Wallet
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Error Messages */}
+                {(errors.wallet || errors.api) && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-sm text-red-600">
+                      {errors.wallet || errors.api}
+                    </p>
+                  </div>
+                )}
+
                 {/* Create Button */}
                 <div className="pt-4">
                   <ResponsiveButton 
                     size="lg" 
-                    className="w-full !bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white"
+                    className={`w-full ${
+                      !isWalletConnected 
+                        ? '!bg-gray-400 !hover:bg-gray-400 !from-gray-400 !to-gray-400 !text-white cursor-not-allowed' 
+                        : '!bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white'
+                    }`}
                     onClick={handleCreateSplit}
-                    disabled={isLoading}
+                    disabled={isLoading || !isWalletConnected}
                   >
-                    {isLoading ? "Processing Payment..." : "Pay & Generate Token"}
+                    {!isWalletConnected 
+                      ? "Connect Wallet First" 
+                      : isLoading 
+                        ? "Processing Payment..." 
+                        : "Pay & Generate Token"
+                    }
                   </ResponsiveButton>
                 </div>
               </div>

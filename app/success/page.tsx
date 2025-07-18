@@ -22,10 +22,18 @@ export default function SuccessPage() {
   useEffect(() => {
     console.log("Success page loaded, URL params:", searchParams.toString())
     
-    // Generate a random token (in real app, this would come from backend)
-    const generatedToken = generateToken()
-    console.log("Generated token:", generatedToken)
-    setToken(generatedToken)
+    // Get token from URL params (this should come from the backend response)
+    const urlToken = searchParams.get("token")
+    if (urlToken) {
+      console.log("Token from URL:", urlToken)
+      setToken(urlToken)
+    } else {
+      console.log("No token in URL, this should not happen")
+      // Fallback: generate a random token (this should not be used in production)
+      const generatedToken = generateToken()
+      console.log("Generated fallback token:", generatedToken)
+      setToken(generatedToken)
+    }
     
     // Get split data from URL params (in real app, this would come from backend)
     const name = searchParams.get("name") || "Team Dinner"
