@@ -2,6 +2,7 @@
 
 import { MobileHeader } from "@/components/mobile-header"
 import { WalletConnect } from "@/components/wallet-connect"
+import { TestnetHelper } from "@/components/testnet-helper"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
 import { useRouter } from "next/navigation"
@@ -28,6 +29,9 @@ export default function HomePage() {
           
           {/* Wallet Connection */}
           <WalletConnect />
+          
+          {/* Testnet Helper - Only shows on testnets */}
+          <TestnetHelper />
         </section>
 
         {/* Ready to Split CTA - Moved up for better visibility */}

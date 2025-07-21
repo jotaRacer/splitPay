@@ -64,35 +64,60 @@ export function Web3Provider({ children }: { children: ReactNode }) {
   }
 
   const switchNetwork = async (targetChainId: number) => {
-    if (!window.ethereum) return
+    if (!window.ethereum) {
+      throw new Error('No wallet detected. Please install MetaMask or another Web3 wallet.')
+    }
 
     try {
       setIsLoading(true)
+      
+      // First try to switch to the network
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: `0x${targetChainId.toString(16)}` }],
       })
+      
+      // Wait a bit for the network change to be processed
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
     } catch (switchError: any) {
+      console.error('Switch network error:', switchError)
+      
+      // If the network doesn't exist in wallet (error 4902), try to add it
       if (switchError.code === 4902) {
         const network = Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === targetChainId)
-        if (network) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: `0x${targetChainId.toString(16)}`,
-                chainName: network.name,
-                rpcUrls: [network.rpcUrl],
-                nativeCurrency: network.nativeCurrency,
-                blockExplorerUrls: [network.blockExplorer],
-              }],
-            })
-          } catch (addError) {
-            console.error('Failed to add network:', addError)
-          }
+        if (!network) {
+          throw new Error(`Network with chain ID ${targetChainId} is not supported`)
         }
+        
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: `0x${targetChainId.toString(16)}`,
+              chainName: network.name,
+              rpcUrls: [network.rpcUrl],
+              nativeCurrency: network.nativeCurrency,
+              blockExplorerUrls: network.blockExplorer ? [network.blockExplorer] : [],
+            }],
+          })
+          
+          // After adding, try to switch again
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+          })
+          
+        } catch (addError: any) {
+          console.error('Failed to add network:', addError)
+          throw new Error(`Failed to add network ${network.name}: ${addError.message || 'Unknown error'}`)
+        }
+      } else if (switchError.code === 4001) {
+        // User rejected the request
+        throw new Error('User rejected network switch request')
       } else {
-        console.error('Failed to switch network:', switchError)
+        // Other errors
+        throw new Error(`Failed to switch network: ${switchError.message || 'Unknown error'}`)
       }
     } finally {
       setIsLoading(false)
