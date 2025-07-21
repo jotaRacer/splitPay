@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { ethers } from 'ethers'
 import { useWeb3 } from '@/contexts/web3-context'
+import { LIFI_CONFIG } from '@/lib/lifi-config'
 
 export interface PaymentParams {
   fromChainId: number
@@ -105,7 +106,12 @@ export function useLifiPayment() {
       toAddress: params.toAddress
     })
 
-    const response = await fetch(`https://li.quest/v1/quote?${queryParams.toString()}`)
+    const response = await fetch(`https://li.quest/v1/quote?${queryParams.toString()}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-lifi-api-key': LIFI_CONFIG.apiKey
+      }
+    })
     
     if (!response.ok) {
       const errorData = await response.json()

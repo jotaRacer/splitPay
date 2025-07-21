@@ -9,7 +9,7 @@ export const LIFI_CONFIG = {
       chainId: 1,
       name: 'Ethereum',
       symbol: 'ETH',
-      rpcUrl: 'https://mainnet.infura.io/v3/YOUR_INFURA_KEY',
+      rpcUrl: process.env.NEXT_PUBLIC_RPC_URL_ETHEREUM || 'https://ethereum.publicnode.com',
       blockExplorer: 'https://etherscan.io',
       nativeCurrency: {
         name: 'Ether',

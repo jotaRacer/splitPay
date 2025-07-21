@@ -80,8 +80,20 @@ class ApiService {
     try {
       const response = await fetch(url, config);
       console.log("API Service - Response status:", response.status)
-      const data = await response.json();
-      console.log("API Service - Response data:", data)
+      
+      // Check if response is JSON
+      const contentType = response.headers.get("content-type");
+      let data;
+      
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+        console.log("API Service - Response data:", data)
+      } else {
+        // Handle non-JSON responses
+        const text = await response.text();
+        console.log("API Service - Non-JSON response:", text)
+        data = { message: text || `HTTP error! status: ${response.status}` };
+      }
       
       if (!response.ok) {
         console.error("API Service - Error response:", data)
