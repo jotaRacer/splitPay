@@ -3,6 +3,7 @@
 import { createContext, useContext, ReactNode } from 'react'
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth'
 import { ethers } from 'ethers'
+import { mainnet, polygon } from 'viem/chains'
 import { SUPPORTED_NETWORKS } from '@/lib/networks'
 
 interface PrivyWeb3ContextType {
@@ -154,13 +155,12 @@ export function PrivyWeb3Provider({ children }: { children: ReactNode }) {
           logo: '/placeholder-logo.svg'
         },
         // Default chain
-        defaultChain: SUPPORTED_NETWORKS.mantle,
-        // Supported chains
+        defaultChain: mainnet,
+        // Supported chains - using proper chain objects
         supportedChains: [
-          SUPPORTED_NETWORKS.mantle,
-          SUPPORTED_NETWORKS.mantleTestnet,
-          SUPPORTED_NETWORKS.ethereum,
-          SUPPORTED_NETWORKS.polygon,
+          mainnet,
+          polygon,
+          // Note: Mantle networks can be added later with custom configuration
         ],
         // Enable email
         embeddedWallets: {
