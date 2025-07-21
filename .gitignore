@@ -19,9 +19,21 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-.env*
+# Environment variables - IMPORTANT: Keep secrets safe!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.staging.local
 backend/.env
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
+
+# Privy configuration (contains sensitive App ID)
+.privy/
 
 # vercel
 .vercel

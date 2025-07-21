@@ -8,10 +8,10 @@ import { PrivyWeb3Provider } from "@/contexts/privy-context"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Split Pay",
-  description: "Simple cross-chain payment splitting",
+  title: "Split Pay - Privy Integration",
+  description: "Simple cross-chain payment splitting with Privy",
   viewport: "width=device-width, initial-scale=1",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -25,9 +25,9 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className={inter.className}>
-        {/* New Privy Integration - Better UX */}
+        {/* Using Privy for better UX */}
         <PrivyWeb3Provider>
-          {/* Old Web3Provider kept for backward compatibility */}
+          {/* Keeping old provider for comparison - you can remove this later */}
           <Web3Provider>
             {children}
           </Web3Provider>
