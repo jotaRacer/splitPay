@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { MobileHeader } from "@/components/mobile-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
+import { LifiPaymentButton } from "@/components/lifi-payment-button"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiService, Split } from "@/lib/api"
 import { ethers } from "ethers"
@@ -362,16 +363,13 @@ export default function JoinSplitPage() {
 
                   {/* Pay Button */}
                   <div className="pt-4">
-                    <ResponsiveButton 
-                      size="lg" 
-                      className="w-full !bg-green-600 !hover:bg-green-700 !from-green-600 !to-green-600 hover:!from-green-700 hover:!to-green-700 !text-white"
-                      onClick={() => {
-                        // TODO: Implementar integración con LI.FI para el pago
-                        alert("Payment integration with LI.FI coming soon!")
-                      }}
-                    >
-                      Pay ${splitInfo.amountPerPerson.toFixed(2)}
-                    </ResponsiveButton>
+                    <LifiPaymentButton
+                      splitAmount={splitInfo.amountPerPerson.toString()}
+                      creatorAddress={splitInfo.creator}
+                      creatorChainId={parseInt(splitInfo.creatorChain)}
+                      creatorTokenAddress={ethers.ZeroAddress} // Token nativo por defecto
+                      className="w-full"
+                    />
                   </div>
                 </div>
               </CardContent>

@@ -5,6 +5,7 @@ import { WalletConnect } from "@/components/wallet-connect"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
 import { useRouter } from "next/navigation"
+import { LifiTest } from "@/components/lifi-test"
 
 export default function HomePage() {
   const router = useRouter()
@@ -72,6 +73,11 @@ export default function HomePage() {
           </Card>
         </section>
 
+        {/* LiFi Test Section */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-bold text-center">🧪 Prueba de LiFi</h2>
+          <LifiTest />
+        </section>
 
       </main>
     </div>
