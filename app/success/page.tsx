@@ -91,7 +91,7 @@ export default function SuccessPage() {
           <div className="flex flex-col items-center space-y-4">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
               <Check className="h-8 w-8 text-green-600" />
-            </div>
+        </div>
             <div>
               <h1 className="text-responsive-3xl font-bold mb-2">Split Created Successfully!</h1>
               <p className="text-responsive-base text-muted-foreground">
@@ -156,15 +156,15 @@ export default function SuccessPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">People:</span>
                       <span className="font-medium">{splitData.participants}</span>
-                    </div>
-                    <div className="flex justify-between">
+                </div>
+                <div className="flex justify-between">
                       <span className="text-gray-600">Each Person Pays:</span>
                       <span className="font-medium">
                         ${((parseFloat(splitData.amount) / parseInt(splitData.participants)) || 0).toFixed(2)}
                       </span>
-                    </div>
-                  </div>
                 </div>
+              </div>
+            </div>
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
