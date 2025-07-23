@@ -1,6 +1,5 @@
 "use client"
 
-import { WalletConnect } from "@/components/wallet-connect"
 import { PrivyWalletConnect } from "@/components/privy-wallet-connect"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -38,7 +37,7 @@ export default function PrivyDemo() {
               </p>
             </CardHeader>
             <CardContent>
-              <WalletConnect />
+              <PrivyWalletConnect />
               
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                 <h4 className="font-medium text-sm mb-2">Limitations:</h4>

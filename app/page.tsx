@@ -1,22 +1,33 @@
 "use client"
 
 import { MobileHeader } from "@/components/mobile-header"
-import { WalletConnect } from "@/components/wallet-connect"
-import { TestnetHelper } from "@/components/testnet-helper"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
 import { useRouter } from "next/navigation"
-import { LifiTest } from "@/components/lifi-test"
+import { Suspense, lazy, useState } from "react"
+
+// Lazy load ONLY essential components
+const PrivyWalletConnect = lazy(() => import("@/components/privy-wallet-connect").then(module => ({ default: module.PrivyWalletConnect })))
+
+// Ultra-light loading component
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center p-4">
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+    </div>
+  )
+}
 
 export default function HomePage() {
   const router = useRouter()
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   return (
     <div className="min-h-screen bg-gray-50">
       <MobileHeader />
 
-      <main className="container-fluid py-6 space-y-8">
-        {/* Welcome Section - Priority on mobile */}
+      <main className="container-fluid py-6 space-y-6">
+        {/* Welcome Section */}
         <section className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -27,14 +38,13 @@ export default function HomePage() {
             </div>
           </div>
           
-          {/* Wallet Connection */}
-          <WalletConnect />
-          
-          {/* Testnet Helper - Only shows on testnets */}
-          <TestnetHelper />
+          {/* Wallet Connection - Lazy loaded */}
+          <Suspense fallback={<LoadingSpinner />}>
+            <PrivyWalletConnect />
+          </Suspense>
         </section>
 
-        {/* Ready to Split CTA - Moved up for better visibility */}
+        {/* Core Actions */}
         <section className="text-center space-y-4">
           <Card className="border-2">
             <CardContent className="p-4 sm:p-6 text-center">
@@ -77,12 +87,51 @@ export default function HomePage() {
           </Card>
         </section>
 
-        {/* LiFi Test Section */}
-        <section className="space-y-4">
-          <h2 className="text-2xl font-bold text-center">🧪 Prueba de LiFi</h2>
-          <LifiTest />
+        {/* Advanced Features Toggle */}
+        <section className="text-center">
+          <ResponsiveButton 
+            variant="outline"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full sm:w-auto"
+          >
+            {showAdvanced ? 'Hide' : 'Show'} Advanced Features
+          </ResponsiveButton>
         </section>
 
+        {/* Advanced Features - Loaded only when needed */}
+        {showAdvanced && (
+          <section className="space-y-4">
+            <h2 className="text-2xl font-bold text-center">🔗 Advanced Features</h2>
+            <Card className="border-2">
+              <CardContent className="p-4 sm:p-6 text-center">
+                <div className="flex flex-col items-center space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold">Test & Development</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Access advanced features for testing and development
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <ResponsiveButton 
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push("/wallet-test")}
+                    >
+                      Wallet Test
+                    </ResponsiveButton>
+                    <ResponsiveButton 
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push("/testnet")}
+                    >
+                      Testnet
+                    </ResponsiveButton>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        )}
       </main>
     </div>
   )

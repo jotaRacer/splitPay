@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useLifiPayment, PaymentParams } from '@/hooks/use-lifi-payment'
-import { useWeb3 } from '@/contexts/web3-context'
+import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { useNetworkValidator } from '@/components/network-validator'
 import { ethers } from 'ethers'
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
@@ -25,7 +25,7 @@ export function LifiPaymentButton({
   creatorTokenAddress,
   className
 }: LifiPaymentButtonProps) {
-  const { account, chainId, signer, provider } = useWeb3()
+  const { account, chainId, signer, provider } = usePrivyWeb3()
   const { processPayment, paymentState, clearPaymentState } = useLifiPayment()
   const { validateAndSwitchNetwork, isNetworkSupported } = useNetworkValidator()
   const [isProcessing, setIsProcessing] = useState(false)

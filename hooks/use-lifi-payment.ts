@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { ethers } from 'ethers'
-import { useWeb3 } from '@/contexts/web3-context'
+import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { LIFI_CONFIG } from '@/lib/lifi-config'
 
 export interface PaymentParams {
@@ -82,7 +82,7 @@ interface LifiQuote {
 }
 
 export function useLifiPayment() {
-  const { signer, account, chainId } = useWeb3()
+  const { account, chainId, getSigner, getProvider } = usePrivyWeb3()
   const [paymentState, setPaymentState] = useState<PaymentState>({
     isLoading: false,
     isCheckingRoutes: false,
@@ -94,7 +94,10 @@ export function useLifiPayment() {
     quote: null
   })
 
-  // Obtener cotización de LiFi API
+  // Memoize the API key to avoid unnecessary re-renders
+  const apiKey = useMemo(() => LIFI_CONFIG.apiKey, [])
+
+  // Obtener cotización de LiFi API - memoized to avoid unnecessary calls
   const getLifiQuote = useCallback(async (params: PaymentParams): Promise<LifiQuote> => {
     const queryParams = new URLSearchParams({
       fromChain: params.fromChainId.toString(),
@@ -109,7 +112,7 @@ export function useLifiPayment() {
     const response = await fetch(`https://li.quest/v1/quote?${queryParams.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
-        'x-lifi-api-key': LIFI_CONFIG.apiKey
+        'x-lifi-api-key': apiKey
       }
     })
     
@@ -119,12 +122,17 @@ export function useLifiPayment() {
     }
 
     return await response.json()
-  }, [])
+  }, [apiKey])
 
   // Verificar si hay rutas disponibles usando la API real
   const checkAvailableRoutes = useCallback(async (params: PaymentParams) => {
-    if (!signer) {
+    if (!account) {
       throw new Error('Wallet no conectada')
+    }
+
+    const signer = await getSigner()
+    if (!signer) {
+      throw new Error('No se pudo obtener el signer')
     }
 
     setPaymentState(prev => ({ ...prev, isCheckingRoutes: true, error: null }))
@@ -163,14 +171,17 @@ export function useLifiPayment() {
       }))
       return false
     }
-  }, [signer, getLifiQuote])
+  }, [account, getSigner, getLifiQuote])
 
-  // Verificar saldo del usuario
+  // Verificar saldo del usuario - memoized to avoid unnecessary calls
   const checkBalance = useCallback(async (tokenAddress: string, amount: string, chainId: number) => {
-    if (!signer) return false
+    if (!account) return false
 
     try {
-      const provider = signer.provider
+      const signer = await getSigner()
+      if (!signer) return false
+
+      const provider = await getProvider()
       if (!provider) return false
 
       if (tokenAddress === ethers.ZeroAddress) {
@@ -191,12 +202,17 @@ export function useLifiPayment() {
       console.error('Error al verificar saldo:', error)
       return false
     }
-  }, [signer, account])
+  }, [account, getSigner, getProvider])
 
   // Ejecutar el pago usando la transacción real de LiFi
   const executePayment = useCallback(async (params: PaymentParams) => {
-    if (!signer) {
+    if (!account) {
       throw new Error('Wallet no conectada')
+    }
+
+    const signer = await getSigner()
+    if (!signer) {
+      throw new Error('No se pudo obtener el signer')
     }
 
     // Verificar que estamos en la red correcta
@@ -262,7 +278,7 @@ export function useLifiPayment() {
       }))
       throw error
     }
-  }, [signer, chainId, checkBalance, getLifiQuote])
+  }, [account, chainId, getSigner, checkBalance, getLifiQuote])
 
   // Función principal que combina verificación y ejecución
   const processPayment = useCallback(async (params: PaymentParams) => {

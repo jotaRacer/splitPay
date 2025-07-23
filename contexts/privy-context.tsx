@@ -3,21 +3,18 @@
 import { createContext, useContext, ReactNode } from 'react'
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth'
 import { ethers } from 'ethers'
-import { mainnet, polygon } from 'viem/chains'
-import { SUPPORTED_NETWORKS } from '@/lib/networks'
 
 interface PrivyWeb3ContextType {
-  provider: ethers.BrowserProvider | null
-  signer: ethers.Signer | null
   account: string | null
   isConnected: boolean
-  chainId: number | null
-  balance: string | null
   connect: () => void
   disconnect: () => void
-  switchNetwork: (chainId: number) => Promise<void>
   isLoading: boolean
-  user: any // Privy user object
+  user: any
+  getProvider: () => Promise<ethers.BrowserProvider | null>
+  getSigner: () => Promise<ethers.Signer | null>
+  getBalance: () => Promise<string | null>
+  getChainId: () => Promise<number | null>
 }
 
 const PrivyWeb3Context = createContext<PrivyWeb3ContextType | null>(null)
@@ -77,61 +74,19 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
     }
   }
 
-  const switchNetwork = async (targetChainId: number) => {
-    if (!wallet) return
-
-    try {
-      const provider = await wallet.getEthereumProvider()
-      await provider.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: `0x${targetChainId.toString(16)}` }],
-      })
-    } catch (switchError: any) {
-      if (switchError.code === 4902) {
-        const network = Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === targetChainId)
-        if (network) {
-          try {
-            const provider = await wallet.getEthereumProvider()
-            await provider.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: `0x${targetChainId.toString(16)}`,
-                chainName: network.name,
-                rpcUrls: [network.rpcUrl],
-                nativeCurrency: network.nativeCurrency,
-                blockExplorerUrls: [network.blockExplorer],
-              }],
-            })
-          } catch (addError) {
-            console.error('Failed to add network:', addError)
-          }
-        }
-      } else {
-        console.error('Failed to switch network:', switchError)
-      }
-    }
-  }
-
   // Create context value with async getters
   const contextValue: PrivyWeb3ContextType = {
-    provider: null, // Will be fetched when needed
-    signer: null,   // Will be fetched when needed  
     account: wallet?.address || null,
     isConnected: authenticated && !!wallet,
-    chainId: null,  // Will be fetched when needed
-    balance: null,  // Will be fetched when needed
     connect: login,
     disconnect: logout,
-    switchNetwork,
     isLoading: !ready,
     user,
+    getProvider,
+    getSigner,
+    getBalance,
+    getChainId,
   }
-
-  // Expose async getters for components that need them
-  ;(contextValue as any).getProvider = getProvider
-  ;(contextValue as any).getSigner = getSigner
-  ;(contextValue as any).getBalance = getBalance
-  ;(contextValue as any).getChainId = getChainId
 
   return (
     <PrivyWeb3Context.Provider value={contextValue}>
@@ -140,29 +95,20 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
   )
 }
 
-// Main provider component
+// Main provider component - Configuración mínima
 export function PrivyWeb3Provider({ children }: { children: ReactNode }) {
   return (
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || "your-privy-app-id"}
       config={{
-        // Login methods
-        loginMethods: ['wallet', 'email', 'google', 'twitter'],
-        // Appearance
+        // Login methods - Solo los esenciales
+        loginMethods: ['wallet'],
+        // Appearance mínima
         appearance: {
           theme: 'light',
           accentColor: '#676FFF',
-          logo: '/placeholder-logo.svg'
         },
-        // Default chain
-        defaultChain: mainnet,
-        // Supported chains - using proper chain objects
-        supportedChains: [
-          mainnet,
-          polygon,
-          // Note: Mantle networks can be added later with custom configuration
-        ],
-        // Enable email
+        // Configuración mínima
         embeddedWallets: {
           createOnLogin: 'users-without-wallets'
         }

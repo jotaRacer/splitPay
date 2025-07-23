@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { useWeb3 } from '@/contexts/web3-context'
+import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +10,7 @@ import { getTestnets, getNetworkByChainId } from '@/lib/networks'
 import { toast } from 'sonner'
 
 export function TestnetSwitcher() {
-  const { chainId, switchNetwork, isConnected } = useWeb3()
+  const { chainId, switchNetwork, isConnected } = usePrivyWeb3()
   const [switching, setSwitching] = useState<number | null>(null)
   
   const testnets = getTestnets()

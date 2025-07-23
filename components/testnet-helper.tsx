@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { useWeb3 } from '@/contexts/web3-context'
+import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,7 +11,7 @@ import { getNetworkByChainId, getFaucetsForChainId, isTestnetChainId } from '@/l
 import { toast } from 'sonner'
 
 export function TestnetHelper() {
-  const { chainId, account } = useWeb3()
+  const { chainId, account } = usePrivyWeb3()
   const [copiedAddress, setCopiedAddress] = useState(false)
 
   if (!chainId || !isTestnetChainId(chainId)) {

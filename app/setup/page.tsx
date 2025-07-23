@@ -6,16 +6,16 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
-import { useWeb3 } from "@/contexts/web3-context"
+import { usePrivyWeb3 } from "@/contexts/privy-context"
 import { useWeb3Transactions } from "@/hooks/use-web3-transactions"
-import { WalletConnect } from "@/components/wallet-connect"
+import { PrivyWalletConnect } from "@/components/privy-wallet-connect"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 
 export default function SetupPage() {
   const router = useRouter()
-  const { isConnected, account, chainId } = useWeb3()
+  const { isConnected, account, chainId } = usePrivyWeb3()
   const { isLoading, estimateGas } = useWeb3Transactions()
   const [recipients, setRecipients] = useState<string[]>([''])
   const [amounts, setAmounts] = useState<string[]>([''])
@@ -70,7 +70,7 @@ export default function SetupPage() {
 
       <div className="space-y-6">
         {/* Wallet Connection */}
-        <WalletConnect />
+                  <PrivyWalletConnect />
 
         {isConnected && (
           <Card>

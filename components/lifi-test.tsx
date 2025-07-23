@@ -4,12 +4,12 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLifiPayment } from '@/hooks/use-lifi-payment'
-import { useWeb3 } from '@/contexts/web3-context'
+import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { ethers } from 'ethers'
 import { toast } from 'sonner'
 
 export function LifiTest() {
-  const { account, chainId, signer } = useWeb3()
+  const { account, chainId, signer } = usePrivyWeb3()
   const { checkAvailableRoutes, paymentState } = useLifiPayment()
   const [isTesting, setIsTesting] = useState(false)
 

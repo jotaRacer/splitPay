@@ -3,8 +3,8 @@
 import { MobileHeader } from "@/components/mobile-header"
 import { TestnetHelper } from "@/components/testnet-helper"
 import { TestnetSwitcher } from "@/components/testnet-switcher"
-import { NetworkDebugger } from "@/components/network-debugger"
-import { WalletConnect } from "@/components/wallet-connect"
+
+import { PrivyWalletConnect } from "@/components/privy-wallet-connect"
 import { LifiTest } from "@/components/lifi-test"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +32,7 @@ export default function TestnetPage() {
         </div>
 
         {/* Wallet Connection */}
-        <WalletConnect />
+                  <PrivyWalletConnect />
 
         {/* Features Grid */}
         <div className="grid gap-6 md:grid-cols-2">
@@ -48,7 +48,7 @@ export default function TestnetPage() {
         </div>
 
         {/* Debug Panel */}
-        <NetworkDebugger />
+        
 
         {/* Testing Section */}
         <Card>

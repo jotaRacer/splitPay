@@ -2,11 +2,11 @@
 
 import { useCallback } from 'react'
 import { LIFI_CONFIG } from '@/lib/lifi-config'
-import { useWeb3 } from '@/contexts/web3-context'
+import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { toast } from 'sonner'
 
 export function useNetworkValidator() {
-  const { chainId, switchNetwork } = useWeb3()
+  const { chainId, switchNetwork } = usePrivyWeb3()
 
   const isNetworkSupported = useCallback((networkId: number) => {
     return Object.values(LIFI_CONFIG.supportedNetworks).some(

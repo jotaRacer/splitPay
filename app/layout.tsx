@@ -2,7 +2,6 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Web3Provider } from "@/contexts/web3-context"
 import { PrivyWeb3Provider } from "@/contexts/privy-context"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -10,8 +9,12 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Split Pay",
   description: "Simple cross-chain payment splitting",
-  viewport: "width=device-width, initial-scale=1",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({
@@ -21,16 +24,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
       <body className={inter.className}>
-        {/* New Privy Integration - Better UX */}
         <PrivyWeb3Provider>
-          {/* Old Web3Provider kept for backward compatibility */}
-          <Web3Provider>
-            {children}
-          </Web3Provider>
+          {children}
         </PrivyWeb3Provider>
       </body>
     </html>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ethers } from 'ethers'
-import { useWeb3 } from '@/contexts/web3-context'
+import { usePrivyWeb3 } from '@/contexts/privy-context'
 
 export interface SplitPaymentParams {
   recipients: string[]
@@ -19,13 +19,18 @@ export interface Transaction {
 }
 
 export function useWeb3Transactions() {
-  const { signer, account, chainId } = useWeb3()
+  const { account, chainId, getSigner, getProvider } = usePrivyWeb3()
   const [isLoading, setIsLoading] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
 
   const sendTransaction = async (to: string, amount: string, memo?: string) => {
-    if (!signer || !account) {
+    if (!account) {
       throw new Error('Wallet not connected')
+    }
+
+    const signer = await getSigner()
+    if (!signer) {
+      throw new Error('Failed to get signer')
     }
 
     setIsLoading(true)
@@ -75,8 +80,13 @@ export function useWeb3Transactions() {
   }
 
   const splitPayment = async ({ recipients, amounts, memo }: SplitPaymentParams) => {
-    if (!signer || !account) {
+    if (!account) {
       throw new Error('Wallet not connected')
+    }
+
+    const signer = await getSigner()
+    if (!signer) {
+      throw new Error('Failed to get signer')
     }
 
     if (recipients.length !== amounts.length) {
@@ -128,13 +138,13 @@ export function useWeb3Transactions() {
   }
 
   const getBalance = async (address?: string) => {
-    if (!signer) return null
+    if (!account) return null
     
     try {
-      const provider = signer.provider
+      const provider = await getProvider()
       if (!provider) return null
       
-      const balance = await provider.getBalance(address || account!)
+      const balance = await provider.getBalance(address || account)
       return ethers.formatEther(balance)
     } catch (error) {
       console.error('Failed to get balance:', error)
@@ -143,9 +153,12 @@ export function useWeb3Transactions() {
   }
 
   const estimateGas = async (to: string, amount: string) => {
-    if (!signer) return null
+    if (!account) return null
 
     try {
+      const signer = await getSigner()
+      if (!signer) return null
+
       const gasEstimate = await signer.estimateGas({
         to,
         value: ethers.parseEther(amount),
