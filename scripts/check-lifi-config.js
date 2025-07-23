@@ -9,16 +9,18 @@ console.log('🔍 Verificando configuración de LiFi...\n');
 const envPath = path.join(process.cwd(), '.env.local');
 if (!fs.existsSync(envPath)) {
   console.log('❌ No se encontró archivo .env.local');
-  console.log('📝 Crea un archivo .env.local con la siguiente configuración:\n');
-  console.log('# LiFi Configuration');
-  console.log('NEXT_PUBLIC_LIFI_API_KEY=tu_api_key_aqui');
-  console.log('NEXT_PUBLIC_LIFI_API_URL=https://li.quest\n');
-  console.log('# Web3 Configuration');
-  console.log('NEXT_PUBLIC_RPC_URL_ETHEREUM=https://mainnet.infura.io/v3/TU_INFURA_KEY');
-  console.log('NEXT_PUBLIC_RPC_URL_POLYGON=https://polygon-rpc.com');
-  console.log('NEXT_PUBLIC_RPC_URL_BASE=https://mainnet.base.org');
-  console.log('NEXT_PUBLIC_RPC_URL_ARBITRUM=https://arb1.arbitrum.io/rpc\n');
-  process.exit(1);
+console.log('📝 Crea un archivo .env.local con la siguiente configuración:\n');
+console.log('# LiFi Configuration');
+console.log('NEXT_PUBLIC_LIFI_API_KEY=tu_api_key_aqui');
+console.log('NEXT_PUBLIC_LIFI_API_URL=https://li.quest\n');
+console.log('# Web3 Configuration');
+console.log('NEXT_PUBLIC_RPC_URL_ETHEREUM=https://mainnet.infura.io/v3/TU_INFURA_KEY');
+console.log('NEXT_PUBLIC_RPC_URL_POLYGON=https://polygon-rpc.com');
+console.log('NEXT_PUBLIC_RPC_URL_BASE=https://mainnet.base.org');
+console.log('NEXT_PUBLIC_RPC_URL_ARBITRUM=https://arb1.arbitrum.io/rpc\n');
+console.log('📖 Para obtener tu API Key de LiFi, sigue las instrucciones en:');
+console.log('   scripts/get-lifi-api-key.md\n');
+process.exit(1);
 }
 
 // Leer y verificar variables de entorno

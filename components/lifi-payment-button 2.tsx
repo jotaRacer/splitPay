@@ -1,0 +1,141 @@
+"use client"
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useLifiPayment, PaymentParams } from '@/hooks/use-lifi-payment'
+import { useWeb3 } from '@/contexts/web3-context'
+import { ethers } from 'ethers'
+import { Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { toast } from 'sonner'
+
+interface LifiPaymentButtonProps {
+  splitAmount: string
+  creatorAddress: string
+  creatorChainId: number
+  creatorTokenAddress: string
+  className?: string
+}
+
+export function LifiPaymentButton({
+  splitAmount,
+  creatorAddress,
+  creatorChainId,
+  creatorTokenAddress,
+  className
+}: LifiPaymentButtonProps) {
+  const { account, chainId, signer } = useWeb3()
+  const { processPayment, paymentState, clearPaymentState } = useLifiPayment()
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const handlePayment = async () => {
+    if (!account || !chainId || !signer) {
+      toast.error('Por favor conecta tu wallet primero')
+      return
+    }
+
+    setIsProcessing(true)
+    clearPaymentState()
+
+    try {
+      const paymentParams: PaymentParams = {
+        fromChainId: chainId,
+        fromTokenAddress: ethers.ZeroAddress, // Token nativo por defecto
+        fromAmount: splitAmount,
+        fromAddress: account,
+        toChainId: creatorChainId,
+        toTokenAddress: creatorTokenAddress,
+        toAddress: creatorAddress
+      }
+
+      const result = await processPayment(paymentParams)
+      
+      toast.success(`Pago procesado exitosamente! Hash: ${result.txHash}`)
+      console.log('Resultado del pago:', result)
+      
+    } catch (error: any) {
+      console.error('Error en el pago:', error)
+      toast.error(error.message || 'Error al procesar el pago')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const getButtonContent = () => {
+    if (paymentState.isLoading || isProcessing) {
+      return (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Procesando pago...
+        </>
+      )
+    }
+
+    if (paymentState.txHash) {
+      return (
+        <>
+          <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+          Pago completado
+        </>
+      )
+    }
+
+    if (paymentState.error) {
+      return (
+        <>
+          <XCircle className="mr-2 h-4 w-4 text-red-500" />
+          Error en pago
+        </>
+      )
+    }
+
+    return 'Pagar con LI.FI'
+  }
+
+  const getButtonVariant = () => {
+    if (paymentState.txHash) return 'outline'
+    if (paymentState.error) return 'destructive'
+    return 'default'
+  }
+
+  const isDisabled = () => {
+    return !account || paymentState.isLoading || isProcessing || paymentState.isCheckingRoutes
+  }
+
+  return (
+    <div className="space-y-2">
+      <Button
+        onClick={handlePayment}
+        disabled={isDisabled()}
+        variant={getButtonVariant()}
+        className={className}
+      >
+        {getButtonContent()}
+      </Button>
+
+      {/* Mostrar información adicional */}
+      {paymentState.estimatedGas && (
+        <p className="text-sm text-muted-foreground">
+          Gas estimado: ${paymentState.estimatedGas}
+        </p>
+      )}
+
+      {paymentState.estimatedTime && (
+        <p className="text-sm text-muted-foreground">
+          Tiempo estimado: {Math.round(paymentState.estimatedTime / 60)} minutos
+        </p>
+      )}
+
+      {paymentState.txHash && (
+        <p className="text-sm text-green-600">
+          Transacción: {paymentState.txHash.slice(0, 10)}...{paymentState.txHash.slice(-8)}
+        </p>
+      )}
+
+      {paymentState.error && (
+        <p className="text-sm text-red-600">
+          Error: {paymentState.error}
+        </p>
+      )}
+    </div>
+  )
+} 

@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useLifiPayment, PaymentParams } from '@/hooks/use-lifi-payment'
+import { usePaymentRequest, PaymentRequestParams } from '@/hooks/use-payment-request'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { useNetworkValidator } from '@/components/network-validator'
 import { ethers } from 'ethers'
-import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, AlertTriangle, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { isTestnetChainId } from '@/lib/networks'
 
@@ -25,22 +26,36 @@ export function LifiPaymentButton({
   creatorTokenAddress,
   className
 }: LifiPaymentButtonProps) {
-  const { account, chainId, signer, provider } = usePrivyWeb3()
+  const { account, getSigner, getProvider } = usePrivyWeb3()
   const { processPayment, paymentState, clearPaymentState } = useLifiPayment()
+  const { executePaymentRequest, state: paymentRequestState } = usePaymentRequest()
   const { validateAndSwitchNetwork, isNetworkSupported } = useNetworkValidator()
   const [isProcessing, setIsProcessing] = useState(false)
   const [balance, setBalance] = useState<string>('0')
   const [hasInsufficientBalance, setHasInsufficientBalance] = useState(false)
+  const [currentChainId, setCurrentChainId] = useState<number | null>(null)
 
   // Check balance when account or chainId changes
   useEffect(() => {
     const checkBalance = async () => {
-      if (!account || !provider || !chainId) {
+      if (!account) {
         setBalance('0')
         return
       }
 
       try {
+        const provider = await getProvider()
+        const signer = await getSigner()
+        
+        if (!provider || !signer) {
+          setBalance('0')
+          return
+        }
+
+        // Obtener chainId actual
+        const network = await provider.getNetwork()
+        setCurrentChainId(Number(network.chainId))
+
         const balanceWei = await provider.getBalance(account)
         const balanceEth = ethers.formatEther(balanceWei)
         setBalance(balanceEth)
@@ -56,17 +71,17 @@ export function LifiPaymentButton({
     }
 
     checkBalance()
-  }, [account, chainId, provider, splitAmount])
+  }, [account, getProvider, getSigner, splitAmount])
 
   const handlePayment = async () => {
-    if (!account || !chainId || !signer) {
+    if (!account || !currentChainId) {
       toast.error('Por favor conecta tu wallet primero')
       return
     }
 
     // Check balance first
     if (hasInsufficientBalance) {
-      const isTestnet = isTestnetChainId(chainId)
+      const isTestnet = isTestnetChainId(currentChainId)
       if (isTestnet) {
         toast.error('Saldo insuficiente. Usa un faucet para obtener tokens de prueba gratuitos.')
       } else {
@@ -98,34 +113,35 @@ export function LifiPaymentButton({
 
     try {
       // Check if it's a same-network transfer
-      const isSameNetwork = chainId === creatorChainId
+      const isSameNetwork = currentChainId === creatorChainId
       
       if (isSameNetwork) {
-        // Direct transfer on the same network
-        toast.info('Transferencia directa en la misma red')
+        // Generar petición de pago directa en la wallet
+        toast.info('Generando petición de pago en tu wallet...')
         
-        const tx = await signer.sendTransaction({
+        const paymentRequestParams: PaymentRequestParams = {
           to: creatorAddress,
-          value: ethers.parseEther(splitAmount),
-          gasLimit: 21000 // Standard ETH transfer gas limit
-        })
-        
-        toast.success(`Transferencia directa exitosa! Hash: ${tx.hash}`)
-        console.log('Transacción directa:', tx)
+          value: splitAmount,
+          chainId: currentChainId,
+          memo: `Split Pay - ${splitAmount} ${getNetworkSymbol(currentChainId)}`
+        }
+
+        await executePaymentRequest(paymentRequestParams)
+        toast.success('Petición de pago enviada a tu wallet!')
         setIsProcessing(false)
         return
       }
 
       // For cross-chain transfers, continue with Li.Fi
       // Validar y cambiar de red si es necesario
-      const networkValid = await validateAndSwitchNetwork(chainId)
+      const networkValid = await validateAndSwitchNetwork(currentChainId)
       if (!networkValid) {
         setIsProcessing(false)
         return
       }
 
       const paymentParams: PaymentParams = {
-        fromChainId: chainId,
+        fromChainId: currentChainId,
         fromTokenAddress: ethers.ZeroAddress, // Token nativo por defecto
         fromAmount: ethers.parseEther(splitAmount).toString(), // Convert to wei
         fromAddress: account,
@@ -147,8 +163,20 @@ export function LifiPaymentButton({
     }
   }
 
+  // Función helper para obtener el símbolo de la red
+  const getNetworkSymbol = (chainId: number): string => {
+    switch (chainId) {
+      case 1: return 'ETH'
+      case 137: return 'MATIC'
+      case 8453: return 'ETH'
+      case 42161: return 'ETH'
+      case 5000: return 'MNT'
+      default: return 'ETH'
+    }
+  }
+
   const getButtonContent = () => {
-    if (paymentState.isLoading || isProcessing) {
+    if (paymentState.isLoading || isProcessing || paymentRequestState.isLoading) {
       return (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -166,7 +194,7 @@ export function LifiPaymentButton({
       )
     }
 
-    if (paymentState.error) {
+    if (paymentState.error || paymentRequestState.error) {
       return (
         <>
           <XCircle className="mr-2 h-4 w-4 text-red-500" />
@@ -185,8 +213,18 @@ export function LifiPaymentButton({
     }
 
     // Check if same network or cross-chain
-    const isSameNetwork = chainId === creatorChainId
-    return isSameNetwork ? 'Pagar Directamente' : 'Pagar con LI.FI'
+    const isSameNetwork = currentChainId === creatorChainId
+    return isSameNetwork ? (
+      <>
+        <Wallet className="mr-2 h-4 w-4" />
+        Pagar en Wallet
+      </>
+    ) : (
+      <>
+        <Wallet className="mr-2 h-4 w-4" />
+        Pagar con LI.FI
+      </>
+    )
   }
 
   const getButtonVariant = () => {
@@ -196,7 +234,7 @@ export function LifiPaymentButton({
   }
 
   const isDisabled = () => {
-    return !account || paymentState.isLoading || isProcessing || paymentState.isCheckingRoutes || hasInsufficientBalance
+    return !account || paymentState.isLoading || isProcessing || paymentState.isCheckingRoutes || paymentRequestState.isLoading || hasInsufficientBalance
   }
 
   return (
@@ -211,9 +249,9 @@ export function LifiPaymentButton({
       </Button>
 
       {/* Balance display */}
-      {account && chainId && (
+      {account && currentChainId && (
         <div className="text-sm text-muted-foreground">
-          Balance: {parseFloat(balance).toFixed(4)} {isTestnetChainId(chainId) ? '(Testnet)' : ''} 
+          Balance: {parseFloat(balance).toFixed(4)} {isTestnetChainId(currentChainId) ? '(Testnet)' : ''} 
           {hasInsufficientBalance && (
             <span className="text-red-600 ml-2">
               (Insuficiente - Necesitas {splitAmount})

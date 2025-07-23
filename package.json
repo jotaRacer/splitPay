@@ -5,12 +5,22 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev -p 3000",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:backend\"",
+    "dev:backend": "cd backend && npm run dev",
     "lint": "next lint",
     "start": "next start",
     "check-lifi": "node scripts/check-lifi-config.js",
+    "validate-tokens": "node scripts/validate-token-addresses.js",
+    "compare-networks": "node scripts/compare-networks.js",
+    "check-lifi-networks": "node scripts/check-lifi-supported-networks.js",
+    "test-new-networks": "node scripts/test-new-networks.js",
+    "test-token-swaps": "node scripts/test-token-swaps.js",
     "test-lifi": "node scripts/test-lifi-api.js",
     "test-lifi-sdk": "node scripts/test-lifi-sdk.js",
-    "test-lifi-hook": "node scripts/test-lifi-hook.js"
+    "test-lifi-hook": "node scripts/test-lifi-hook.js",
+    "diagnose-lifi": "node scripts/diagnose-lifi-issues.js",
+    "test-payment-request": "node scripts/test-payment-request.js",
+    "check-privy": "node scripts/check-privy-config.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -75,6 +85,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.0",
     "postcss": "^8.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"

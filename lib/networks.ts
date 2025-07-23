@@ -114,6 +114,30 @@ export const SUPPORTED_NETWORKS = {
       decimals: 18
     },
     isTestnet: false
+  },
+  base: {
+    chainId: 8453,
+    name: 'Base',
+    rpcUrl: 'https://mainnet.base.org',
+    blockExplorer: 'https://basescan.org',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    isTestnet: false
+  },
+  arbitrum: {
+    chainId: 42161,
+    name: 'Arbitrum One',
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    blockExplorer: 'https://arbiscan.io',
+    nativeCurrency: {
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18
+    },
+    isTestnet: false
   }
 } as const
 

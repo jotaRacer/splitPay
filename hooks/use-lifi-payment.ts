@@ -82,7 +82,7 @@ interface LifiQuote {
 }
 
 export function useLifiPayment() {
-  const { account, chainId, getSigner, getProvider } = usePrivyWeb3()
+  const { account, getSigner, getProvider } = usePrivyWeb3()
   const [paymentState, setPaymentState] = useState<PaymentState>({
     isLoading: false,
     isCheckingRoutes: false,
@@ -95,10 +95,30 @@ export function useLifiPayment() {
   })
 
   // Memoize the API key to avoid unnecessary re-renders
-  const apiKey = useMemo(() => LIFI_CONFIG.apiKey, [])
+  const apiKey = useMemo(() => {
+    // Usar la API Key del archivo de configuración o de las variables de entorno
+    return process.env.NEXT_PUBLIC_LIFI_API_KEY || LIFI_CONFIG.apiKey
+  }, [])
 
   // Obtener cotización de LiFi API - memoized to avoid unnecessary calls
   const getLifiQuote = useCallback(async (params: PaymentParams): Promise<LifiQuote> => {
+    // Validar parámetros antes de hacer la petición
+    if (!params.fromChainId || !params.toChainId) {
+      throw new Error('Chain IDs son requeridos')
+    }
+    
+    if (!params.fromTokenAddress || !params.toTokenAddress) {
+      throw new Error('Direcciones de tokens son requeridas')
+    }
+    
+    if (!params.fromAmount || parseFloat(params.fromAmount) <= 0) {
+      throw new Error('Monto debe ser mayor a 0')
+    }
+    
+    if (!params.fromAddress || !params.toAddress) {
+      throw new Error('Direcciones de origen y destino son requeridas')
+    }
+
     const queryParams = new URLSearchParams({
       fromChain: params.fromChainId.toString(),
       toChain: params.toChainId.toString(),
@@ -192,11 +212,12 @@ export function useLifiPayment() {
         // Token ERC-20
         const tokenContract = new ethers.Contract(
           tokenAddress,
-          ['function balanceOf(address) view returns (uint256)'],
+          ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'],
           provider
         )
         const balance = await tokenContract.balanceOf(account!)
-        return balance >= ethers.parseUnits(amount, 18) // Asumiendo 18 decimales
+        const decimals = await tokenContract.decimals()
+        return balance >= ethers.parseUnits(amount, decimals)
       }
     } catch (error) {
       console.error('Error al verificar saldo:', error)
@@ -216,8 +237,12 @@ export function useLifiPayment() {
     }
 
     // Verificar que estamos en la red correcta
-    if (chainId !== params.fromChainId) {
-      throw new Error(`Debes estar en la red ${params.fromChainId} para realizar este pago`)
+    const provider = await getProvider()
+    if (provider) {
+      const currentChainId = await provider.getNetwork().then(network => network.chainId)
+      if (currentChainId !== BigInt(params.fromChainId)) {
+        throw new Error(`Debes estar en la red ${params.fromChainId} para realizar este pago`)
+      }
     }
 
     // Verificar saldo
@@ -278,7 +303,7 @@ export function useLifiPayment() {
       }))
       throw error
     }
-  }, [account, chainId, getSigner, checkBalance, getLifiQuote])
+  }, [account, getSigner, checkBalance, getLifiQuote])
 
   // Función principal que combina verificación y ejecución
   const processPayment = useCallback(async (params: PaymentParams) => {
