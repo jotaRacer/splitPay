@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, ReactNode } from 'react'
+import { createContext, useContext, ReactNode, useEffect, useState } from 'react'
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth'
 import { ethers } from 'ethers'
 
@@ -23,6 +23,26 @@ const PrivyWeb3Context = createContext<PrivyWeb3ContextType | null>(null)
 function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
   const { login, logout, authenticated, user, ready } = usePrivy()
   const { wallets } = useWallets()
+  const [forceReady, setForceReady] = useState(false)
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Privy state:', { ready, authenticated, user: !!user, wallets: wallets.length })
+  }, [ready, authenticated, user, wallets])
+
+  // Force ready state after timeout to prevent infinite loading
+  useEffect(() => {
+    if (!ready) {
+      const timeout = setTimeout(() => {
+        console.warn('Privy initialization timeout - forcing ready state')
+        setForceReady(true)
+      }, 10000) // 10 seconds timeout
+
+      return () => clearTimeout(timeout)
+    } else {
+      setForceReady(false)
+    }
+  }, [ready])
 
   // Get the connected wallet
   const wallet = wallets[0] // First connected wallet
@@ -80,7 +100,7 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
     isConnected: authenticated && !!wallet,
     connect: login,
     disconnect: logout,
-    isLoading: !ready,
+    isLoading: !ready && !forceReady,
     user,
     getProvider,
     getSigner,
@@ -95,22 +115,28 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
   )
 }
 
-// Main provider component - Configuración mínima
+// Main provider component - Enhanced with social login
 export function PrivyWeb3Provider({ children }: { children: ReactNode }) {
   return (
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || "your-privy-app-id"}
       config={{
-        // Login methods - Solo los esenciales
-        loginMethods: ['wallet'],
-        // Appearance mínima
+        // Login methods - Enable social login options
+        loginMethods: ['wallet', 'email', 'google', 'twitter'],
+        // Enhanced appearance
         appearance: {
           theme: 'light',
-          accentColor: '#676FFF',
+          accentColor: '#2563eb', // Blue to match your testnet theme
+          logo: undefined,
         },
-        // Configuración mínima
+        // Enhanced embedded wallet configuration
         embeddedWallets: {
           createOnLogin: 'users-without-wallets'
+        },
+        // Legal settings
+        legal: {
+          termsAndConditionsUrl: undefined,
+          privacyPolicyUrl: undefined
         }
       }}
     >

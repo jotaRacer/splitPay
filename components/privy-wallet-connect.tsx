@@ -27,6 +27,20 @@ export function PrivyWalletConnect() {
   const [chainId, setChainId] = useState<number | null>(null)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [hasLoadedData, setHasLoadedData] = useState(false)
+  const [initializationTimeout, setInitializationTimeout] = useState(false)
+
+  // Handle initialization timeout
+  useEffect(() => {
+    if (isLoading) {
+      const timeout = setTimeout(() => {
+        setInitializationTimeout(true)
+      }, 8000) // 8 seconds timeout
+
+      return () => clearTimeout(timeout)
+    } else {
+      setInitializationTimeout(false)
+    }
+  }, [isLoading])
 
   // Load wallet data when connected - with debouncing
   const loadWalletData = useCallback(async () => {
@@ -78,13 +92,41 @@ export function PrivyWalletConnect() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
 
-  if (isLoading) {
+  if (isLoading && !initializationTimeout) {
     return (
       <Card className="border-2">
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-center space-x-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <span className="text-sm text-muted-foreground">Conectando...</span>
+            <span className="text-sm text-muted-foreground">Initializing...</span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Show error state if initialization timed out
+  if (isLoading && initializationTimeout) {
+    return (
+      <Card className="border-2">
+        <CardContent className="p-4 sm:p-6 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+              <Wallet className="h-6 w-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Connection Issue</h3>
+              <p className="text-sm text-muted-foreground">
+                Authentication system is taking longer than expected
+              </p>
+            </div>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline" 
+              className="w-full max-w-sm"
+            >
+              Refresh Page
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -100,14 +142,21 @@ export function PrivyWalletConnect() {
               <Wallet className="h-6 w-6 text-gray-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">Connect Your Wallet</h3>
+              <h3 className="text-lg font-semibold">Connect Your Account</h3>
               <p className="text-sm text-muted-foreground">
-                Connect your wallet to start splitting payments
+                Connect via email, social login, or crypto wallet
               </p>
             </div>
-            <Button onClick={connect} className="w-full sm:w-auto">
-              Connect Wallet
-            </Button>
+            
+            {/* Enhanced connection button */}
+            <div className="space-y-3 w-full max-w-sm">
+              <Button onClick={connect} className="w-full">
+                <div className="flex items-center justify-center space-x-2">
+                  <Wallet className="h-4 w-4" />
+                  <span>Connect Account</span>
+                </div>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -32,25 +32,12 @@ export default function TestnetPage() {
         </div>
 
         {/* Wallet Connection */}
-                  <PrivyWalletConnect />
+        <PrivyWalletConnect />
 
-        {/* Features Grid */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Testnet Helper */}
-          <div className="space-y-4">
-            <TestnetHelper />
-          </div>
+        {/* Network Switching */}
+        <TestnetSwitcher />
 
-          {/* Testnet Switcher */}
-          <div className="space-y-4">
-            <TestnetSwitcher />
-          </div>
-        </div>
-
-        {/* Debug Panel */}
-        
-
-        {/* Testing Section */}
+        {/* Cross-Chain Testing */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -65,6 +52,12 @@ export default function TestnetPage() {
             <LifiTest />
           </CardContent>
         </Card>
+
+        {/* Testnet Helper */}
+        <TestnetHelper />
+
+        {/* Debug Panel */}
+        
 
         {/* Best Practices */}
         <Card>

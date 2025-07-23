@@ -56,7 +56,6 @@ export default function HomePage() {
                   </p>
                 </div>
                 <ResponsiveButton 
-                  size="lg" 
                   className="w-full sm:w-auto !bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white"
                   onClick={() => router.push("/create")}
                 >
@@ -76,7 +75,6 @@ export default function HomePage() {
                   </p>
                 </div>
                 <ResponsiveButton 
-                  size="lg" 
                   className="w-full sm:w-auto !bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white"
                   onClick={() => router.push("/join")}
                 >

@@ -1,45 +1,46 @@
 # Split Pay 💰
 
-**Split Pay is a collaborative app that allows several people to contribute to a group payment from any blockchain, gathering all the contributions and delivering the total amount to the recipient in the network of their preference as a single unified payment.**
+**A Web3 app for splitting group payments across blockchains. Everyone pays from any network, receiver gets the total on their preferred chain.**
 
-Split Pay lets anyone easily split group expenses. Everyone pays their share from any blockchain, and the receiver gets the combined total on their chosen network, thanks to LI.FI's cross-chain tech. Perfect for friends, remote teams, or digital communities.
+Perfect for splitting bills, group purchases, or any shared expenses with friends, teams, or communities.
 
 ## ✨ Features
 
-- 🌐 Multi-chain payments (Mantle, Ethereum, Polygon)
-- 🔗 Cross-chain aggregation with LI.FI
-- 📱 Mobile-first responsive design
-- 🔐 Web3 wallet integration
-- 🎫 Simple token-based sharing
+- 🔐 **Multiple login options**: Email, Google, Twitter, or Web3 wallets
+- 🌐 **Cross-chain payments**: Pay from any blockchain, receive on any other
+- 📱 **Mobile-first design**: Works great on all devices
+- 🎫 **Simple sharing**: 12-character tokens to join splits
+- 🧪 **Testing environment**: Safe testnet integration
 
-## 🚧 Status
+## 🚧 Current Status
 
-- ✅ Frontend & Backend
-- ✅ Web3 Integration  
-- ✅ Token System
-- 🔄 LI.FI Integration
-- 🔄 Database
+- ✅ Frontend & Backend complete
+- ✅ Privy authentication with social login
+- ✅ LI.FI cross-chain integration
+- ✅ Testnet environment
+- 🔄 Database integration
+- 🔄 Mainnet deployment
 
-## 🔮 Upcoming Features
+## 🔮 Coming Soon
 
-- 📜 Split History - Track past splits and payments
-- 👤 User Profiles - Personalized accounts and preferences
-- 📱 QR Code to Join Split - Scan to join splits instantly
-- 🎨 Improved Interface - Enhanced UX/UI design
-- 💳 Simple Payment Without Splitting - Direct payment option
+- 📜 Split history tracking
+- 👤 User profiles
+- 📱 QR code sharing
+- 💳 Direct payments (no splitting)
 
 ## 🏗️ Tech Stack
 
-- **Frontend**: Next.js 15, React 19, Tailwind CSS
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Authentication**: Privy with social login
+- **Web3**: ethers.js, LI.FI SDK
+- **Styling**: Tailwind CSS, shadcn/ui
 - **Backend**: Express.js, Node.js
-- **Web3**: ethers.js, MetaMask support
-- **Networks**: Mantle, Ethereum, Polygon
 
-## � Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+
-- Web3 wallet
+- Privy App ID
 
 ### Installation
 ```bash
@@ -49,47 +50,53 @@ npm install
 cd backend && npm install && cd ..
 ```
 
+### Environment Setup
+```bash
+# .env.local
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+```
+
 ### Run
 ```bash
-# Both servers
-npm run dev:all
-
-# Or separately
-npm run dev:frontend  # Port 3000
-npm run dev:backend   # Port 3001
+npm run dev:all    # Both frontend and backend
+npm run dev        # Frontend only (port 3000)
 ```
 
 ## 💡 How It Works
 
-1. **Create Split** → Generate a 12-character token
-2. **Share Token** → Others join using the token
+1. **Create Split** → Set amount and generate sharing token
+2. **Share Token** → Send 12-character code to participants
 3. **Pay** → Everyone pays from their preferred blockchain
-4. **Collect** → Receiver gets total on their chosen network
+4. **Receive** → Creator gets total on their chosen network
 
-## 🔧 API
+## 🧪 Testing
 
-- `POST /api/splits/create` - Create split
-- `GET /api/splits/token/:token` - Get split info
-- `POST /api/splits/join` - Join split
-- `POST /api/splits/mark-paid` - Mark as paid
+- Visit `/testnet` for safe testing environment
+- Get free test tokens from built-in faucets
+- Test all features without real money
 
-## � Project Structure
+## 🔧 API Endpoints
+
+- `POST /api/splits/create` - Create new split
+- `GET /api/splits/token/:token` - Get split details
+- `POST /api/splits/join` - Join existing split
+- `POST /api/splits/mark-paid` - Mark payment complete
+
+## 📁 Project Structure
 
 ```
 split-pay/
-├── app/           # Next.js pages (create, join, success)
-├── components/    # UI components
-├── contexts/      # Web3 state management
-├── lib/           # Utils and API client
-└── backend/       # Express.js API
-    ├── controllers/
-    ├── models/
-    └── services/
+├── app/           # Next.js pages
+├── components/    # React components
+├── contexts/      # Web3 providers
+├── lib/           # Utilities
+└── backend/       # Express API
 ```
+
 ## 📄 License
 
 MIT License
 
 ---
 
-**Made with ❤️ from Chile by students**
+**Made with ❤️ in Chile**
