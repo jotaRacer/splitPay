@@ -35,7 +35,7 @@ export default function TestnetPage() {
                   <PrivyWalletConnect />
 
         {/* Features Grid */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Testnet Helper */}
           <div className="space-y-4">
             <TestnetHelper />

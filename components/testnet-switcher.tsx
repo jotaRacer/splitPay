@@ -61,7 +61,7 @@ export function TestnetSwitcher() {
   }
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Network className="h-5 w-5 text-blue-600" />
@@ -72,8 +72,8 @@ export function TestnetSwitcher() {
         </CardDescription>
       </CardHeader>
       
-      <CardContent>
-        <div className="grid gap-3">
+      <CardContent className="space-y-4">
+        <div className="space-y-3 max-h-[400px] overflow-y-auto">
           {Object.entries(testnets).map(([key, network]) => {
             const status = getNetworkStatus(network.chainId)
             const isActive = status === 'active'
@@ -86,12 +86,12 @@ export function TestnetSwitcher() {
                   isActive ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                 }`}
               >
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-sm">{network.name}</h4>
+                    <h4 className="font-medium text-sm truncate">{network.name}</h4>
                     <Badge 
                       variant="outline" 
-                      className={`text-xs ${getStatusColor(status)}`}
+                      className={`text-xs flex-shrink-0 ${getStatusColor(status)}`}
                     >
                       {isActive ? 'Conectado' : 'Disponible'}
                     </Badge>
@@ -102,7 +102,7 @@ export function TestnetSwitcher() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                   {network.blockExplorer && (
                     <Button
                       variant="ghost"
@@ -151,13 +151,13 @@ export function TestnetSwitcher() {
         </div>
 
         {!isConnected && (
-          <p className="text-sm text-muted-foreground text-center mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+          <p className="text-sm text-muted-foreground text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             Conecta tu wallet primero para cambiar de red
           </p>
         )}
 
         {currentNetwork && !currentNetwork.isTestnet && (
-          <p className="text-sm text-blue-600 text-center mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-sm text-blue-600 text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
             Actualmente estás en {currentNetwork.name} (Mainnet). 
             Cambia a una testnet para desarrollo seguro.
           </p>
