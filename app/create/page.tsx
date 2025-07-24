@@ -4,6 +4,7 @@ import React, { memo, useState } from "react"
 import { MobileHeader } from "@/components/mobile-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
+import { ReceiverPreferences } from "@/components/receiver-preferences"
 import { useRouter } from "next/navigation"
 import { apiService, CreateSplitData } from "@/lib/api"
 import { usePrivyWeb3 } from "@/contexts/privy-context"
@@ -17,6 +18,12 @@ const CreateSplitPage = memo(function CreateSplitPage() {
     amount: "",
     participants: "",
     description: ""
+  })
+  const [receiverPreferences, setReceiverPreferences] = useState({
+    chainId: 1, // Default to Ethereum
+    tokenAddress: "0x0000000000000000000000000000000000000000", // Default to native token
+    tokenSymbol: "ETH",
+    tokenDecimals: 18
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -68,7 +75,11 @@ const CreateSplitPage = memo(function CreateSplitPage() {
         participants: parseInt(formData.participants),
         description: formData.description,
         creator: account,
-        creatorChain: "1" // Default to Ethereum mainnet
+        creatorChain: receiverPreferences.chainId.toString(),
+        // Add receiver preferences to the split data
+        receiverTokenAddress: receiverPreferences.tokenAddress,
+        receiverTokenSymbol: receiverPreferences.tokenSymbol,
+        receiverTokenDecimals: receiverPreferences.tokenDecimals
       }
 
       console.log('Creating split with data:', splitData)
@@ -194,6 +205,12 @@ const CreateSplitPage = memo(function CreateSplitPage() {
                       />
                     </div>
                   </div>
+
+                  {/* Receiver Preferences */}
+                  <ReceiverPreferences 
+                    onPreferencesChange={setReceiverPreferences}
+                    className="border-2"
+                  />
 
                   {/* Wallet Info */}
                   <div className="bg-blue-50 p-4 rounded-lg">

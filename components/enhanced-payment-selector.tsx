@@ -235,6 +235,11 @@ export function EnhancedPaymentSelector({
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Pay ${splitAmount} from {NETWORK_NAMES[currentChainId as keyof typeof NETWORK_NAMES]} to {NETWORK_NAMES[creatorChainId as keyof typeof NETWORK_NAMES]}
+          {/* Show what the receiver will get */}
+          <br />
+          <span className="text-green-600 font-medium">
+            Receiver gets their preferred token automatically
+          </span>
         </p>
       </CardHeader>
       
@@ -278,8 +283,7 @@ export function EnhancedPaymentSelector({
                 <span className="font-medium">{selectedToken.symbol}</span>
                 <ArrowRight className="h-4 w-4" />
                 <span className="font-medium">
-                  {/* We'd need to get the creator's token symbol */}
-                  Creator's Token
+                  Creator's preferred token
                 </span>
               </div>
               <Badge variant="secondary">

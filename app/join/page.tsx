@@ -213,6 +213,12 @@ export default function JoinSplitPage() {
                           <span className="text-gray-600">Your Share:</span>
                           <span className="font-medium">${splitInfo.amountPerPerson}</span>
                         </div>
+                        {splitInfo.receiverTokenSymbol && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Creator receives:</span>
+                            <span className="font-medium">{splitInfo.receiverTokenSymbol}</span>
+                          </div>
+                        )}
                         {splitInfo.description && (
                           <div className="pt-3 border-t">
                             <span className="text-gray-600">Description:</span>
@@ -245,7 +251,7 @@ export default function JoinSplitPage() {
                         splitAmount={splitInfo.amountPerPerson.toString()}
                         creatorAddress={splitInfo.creator}
                         creatorChainId={parseInt(splitInfo.creatorChain)}
-                        creatorTokenAddress="0x0000000000000000000000000000000000000000" // Native token by default
+                        creatorTokenAddress={splitInfo.receiverTokenAddress || "0x0000000000000000000000000000000000000000"}
                         className="w-full"
                       />
                     </div>

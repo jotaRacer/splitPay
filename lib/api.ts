@@ -7,6 +7,10 @@ export interface CreateSplitData {
   description?: string;
   creator: string;
   creatorChain: string;
+  // Receiver preferences for where they want to receive funds
+  receiverTokenAddress?: string;
+  receiverTokenSymbol?: string;
+  receiverTokenDecimals?: number;
 }
 
 export interface JoinSplitData {
@@ -30,6 +34,10 @@ export interface Split {
   description: string;
   creator: string;
   creatorChain: string;
+  // Receiver preferences
+  receiverTokenAddress?: string;
+  receiverTokenSymbol?: string;
+  receiverTokenDecimals?: number;
   amountPerPerson: number;
   status: 'active' | 'completed' | 'cancelled';
   createdAt: string;
