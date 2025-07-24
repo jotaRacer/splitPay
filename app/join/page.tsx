@@ -79,18 +79,7 @@ export default function JoinSplitPage() {
     }
   }
 
-  const handlePayment = async () => {
-    if (!splitInfo || !account) return
 
-    try {
-      // For now, just navigate to swap page
-      // In a real implementation, you'd handle the payment here
-      router.push("/swap")
-    } catch (error: any) {
-      console.error("Error processing payment:", error)
-      setError(error.message || "Failed to process payment")
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -223,12 +212,13 @@ export default function JoinSplitPage() {
                       </div>
 
                       {/* Payment Button */}
-                      <ResponsiveButton 
-                        onClick={handlePayment}
-                        className="w-full !bg-green-600 !hover:bg-green-700 !from-green-600 !to-green-600 hover:!from-green-700 hover:!to-green-700 !text-white"
-                      >
-                        Pay ${splitInfo.amountPerPerson}
-                      </ResponsiveButton>
+                      <LifiPaymentButton
+                        splitAmount={splitInfo.amountPerPerson.toString()}
+                        creatorAddress={splitInfo.creator}
+                        creatorChainId={parseInt(splitInfo.creatorChain)}
+                        creatorTokenAddress="0x0000000000000000000000000000000000000000" // Token nativo por defecto
+                        className="w-full"
+                      />
                     </div>
                   </CardContent>
                 </Card>
