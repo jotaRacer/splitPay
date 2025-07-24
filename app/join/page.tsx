@@ -1,13 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from 'next/dynamic'
 import { MobileHeader } from "@/components/mobile-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
-import { LifiPaymentButton } from "@/components/lifi-payment-button"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiService, Split } from "@/lib/api"
 import { usePrivyWeb3 } from "@/contexts/privy-context"
+import { Loader2 } from "lucide-react"
+
+// Lazy load the heavy LiFi component for better performance
+const LifiPaymentButton = dynamic(() => 
+  import("@/components/lifi-payment-button").then(m => ({ default: m.LifiPaymentButton })), 
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center p-4">
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        <span className="text-sm text-muted-foreground">Loading payment options...</span>
+      </div>
+    ),
+    ssr: false 
+  }
+)
 
 export default function JoinSplitPage() {
   const router = useRouter()

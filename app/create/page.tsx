@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { memo, useState } from "react"
 import { MobileHeader } from "@/components/mobile-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 import { apiService, CreateSplitData } from "@/lib/api"
 import { usePrivyWeb3 } from "@/contexts/privy-context"
 
-export default function CreateSplitPage() {
+const CreateSplitPage = memo(function CreateSplitPage() {
   const router = useRouter()
   const { isConnected, account, connect } = usePrivyWeb3()
   
@@ -225,4 +225,6 @@ export default function CreateSplitPage() {
       </main>
     </div>
   )
-} 
+})
+
+export default CreateSplitPage 
