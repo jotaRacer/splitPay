@@ -24,6 +24,20 @@ const LifiPaymentButton = dynamic(() =>
   }
 )
 
+// Enhanced payment selector with token choice
+const EnhancedPaymentSelector = dynamic(() => 
+  import("@/components/enhanced-payment-selector").then(m => ({ default: m.EnhancedPaymentSelector })), 
+  { 
+    loading: () => (
+      <div className="flex items-center justify-center p-4">
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        <span className="text-sm text-muted-foreground">Loading payment options...</span>
+      </div>
+    ),
+    ssr: false 
+  }
+)
+
 export default function JoinSplitPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -226,12 +240,12 @@ export default function JoinSplitPage() {
                         </div>
                       </div>
 
-                      {/* Payment Button */}
-                      <LifiPaymentButton
+                      {/* Enhanced Payment Selector */}
+                      <EnhancedPaymentSelector
                         splitAmount={splitInfo.amountPerPerson.toString()}
                         creatorAddress={splitInfo.creator}
                         creatorChainId={parseInt(splitInfo.creatorChain)}
-                        creatorTokenAddress="0x0000000000000000000000000000000000000000" // Token nativo por defecto
+                        creatorTokenAddress="0x0000000000000000000000000000000000000000" // Native token by default
                         className="w-full"
                       />
                     </div>
