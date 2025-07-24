@@ -5,6 +5,22 @@ import { ethers } from 'ethers'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { LIFI_CONFIG } from '@/lib/lifi-config'
 
+// Simple cache for LiFi quotes and routes to speed up repeated requests
+const lifiCache = new Map<string, { data: any; timestamp: number }>()
+const CACHE_DURATION = 30000 // 30 seconds cache
+
+function getCachedData(key: string) {
+  const cached = lifiCache.get(key)
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data
+  }
+  return null
+}
+
+function setCachedData(key: string, data: any) {
+  lifiCache.set(key, { data, timestamp: Date.now() })
+}
+
 export interface PaymentParams {
   fromChainId: number
   fromTokenAddress: string
@@ -102,6 +118,16 @@ export function useLifiPayment() {
 
   // Obtener cotización de LiFi API - memoized to avoid unnecessary calls
   const getLifiQuote = useCallback(async (params: PaymentParams): Promise<LifiQuote> => {
+    // Create cache key for this quote request
+    const cacheKey = `quote-${params.fromChainId}-${params.toChainId}-${params.fromTokenAddress}-${params.toTokenAddress}-${params.fromAmount}`
+    
+    // Check cache first
+    const cachedQuote = getCachedData(cacheKey)
+    if (cachedQuote) {
+      console.log('🚀 Using cached LiFi quote - instant load!')
+      return cachedQuote
+    }
+
     // Validar parámetros antes de hacer la petición
     if (!params.fromChainId || !params.toChainId) {
       throw new Error('Chain IDs son requeridos')
@@ -117,6 +143,12 @@ export function useLifiPayment() {
     
     if (!params.fromAddress || !params.toAddress) {
       throw new Error('Direcciones de origen y destino son requeridas')
+    }
+
+    // Check if it's the same token on the same chain (no swap needed)
+    if (params.fromChainId === params.toChainId && 
+        params.fromTokenAddress.toLowerCase() === params.toTokenAddress.toLowerCase()) {
+      throw new Error('Same chain, same token - use direct transfer instead of LiFi')
     }
 
     const queryParams = new URLSearchParams({
@@ -141,7 +173,13 @@ export function useLifiPayment() {
       throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`)
     }
 
-    return await response.json()
+    const quote = await response.json()
+    
+    // Cache the successful quote for future use
+    setCachedData(cacheKey, quote)
+    console.log('📦 Cached LiFi quote for faster future loads')
+    
+    return quote
   }, [apiKey])
 
   // Verificar si hay rutas disponibles usando la API real

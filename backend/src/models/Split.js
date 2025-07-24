@@ -10,6 +10,10 @@ class Split {
     this.description = data.description || '';
     this.creator = data.creator; // Wallet address del creador
     this.creatorChain = data.creatorChain; // Chain del creador
+    // Receiver preferences for where they want to receive funds
+    this.receiverTokenAddress = data.receiverTokenAddress || '';
+    this.receiverTokenSymbol = data.receiverTokenSymbol || '';
+    this.receiverTokenDecimals = data.receiverTokenDecimals || 18;
     this.amountPerPerson = this.amount / this.participants;
     this.status = 'active'; // active, completed, cancelled
     this.createdAt = data.createdAt || new Date();
@@ -112,6 +116,10 @@ class Split {
       description: this.description,
       creator: this.creator,
       creatorChain: this.creatorChain,
+      // Receiver preferences
+      receiverTokenAddress: this.receiverTokenAddress,
+      receiverTokenSymbol: this.receiverTokenSymbol,
+      receiverTokenDecimals: this.receiverTokenDecimals,
       amountPerPerson: this.amountPerPerson,
       status: this.status,
       createdAt: this.createdAt,

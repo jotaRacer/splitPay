@@ -24,15 +24,52 @@ const LifiPaymentButton = dynamic(() =>
   }
 )
 
-// Enhanced payment selector with token choice
+// Enhanced payment selector with token choice - optimized loading
 const EnhancedPaymentSelector = dynamic(() => 
   import("@/components/enhanced-payment-selector").then(m => ({ default: m.EnhancedPaymentSelector })), 
   { 
     loading: () => (
-      <div className="flex items-center justify-center p-4">
-        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-        <span className="text-sm text-muted-foreground">Loading payment options...</span>
-      </div>
+      <Card className="w-full">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-center space-x-3 py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <div className="text-center">
+                <div className="font-medium text-lg">Loading Payment System</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  Initializing cross-chain routing (~3-5 seconds)
+                </div>
+              </div>
+            </div>
+            
+            {/* Show what's being loaded */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span>Loading LiFi SDK</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>Checking networks</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                  <span>Loading token prices</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                  <span>Optimizing routes</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-xs text-center text-gray-400">
+              💡 This happens once per session - subsequent payments are instant
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     ),
     ssr: false 
   }

@@ -65,6 +65,7 @@ export function EnhancedPaymentSelector({
   
   // State management
   const [currentChainId, setCurrentChainId] = useState<number | null>(null)
+  const [selectedNetwork, setSelectedNetwork] = useState<number | null>(null) // New: Allow network selection
   const [selectedToken, setSelectedToken] = useState<any>(null)
   const [userBalances, setUserBalances] = useState<{ [key: string]: string }>({})
   const [isLoadingBalances, setIsLoadingBalances] = useState(false)
@@ -72,28 +73,41 @@ export function EnhancedPaymentSelector({
   const [isCheckingRoutes, setIsCheckingRoutes] = useState(false)
   const [bestRoute, setBestRoute] = useState<any>(null)
 
-  // Load current chain ID
+  // Load current chain ID and set as default selected network
   useEffect(() => {
     const loadChainId = async () => {
       if (account) {
         const chainId = await getChainId()
         setCurrentChainId(chainId)
+        // Set current network as default selection
+        if (!selectedNetwork) {
+          setSelectedNetwork(chainId)
+        }
       }
     }
     loadChainId()
-  }, [account, getChainId])
+  }, [account, getChainId, selectedNetwork])
 
-  // Get available tokens for current chain
+  // Get available tokens for selected network (not just current)
   const availableTokens = useMemo(() => {
-    if (!currentChainId || !POPULAR_TOKENS[currentChainId as keyof typeof POPULAR_TOKENS]) {
+    if (!selectedNetwork || !POPULAR_TOKENS[selectedNetwork as keyof typeof POPULAR_TOKENS]) {
       return []
     }
-    return POPULAR_TOKENS[currentChainId as keyof typeof POPULAR_TOKENS]
-  }, [currentChainId])
+    return POPULAR_TOKENS[selectedNetwork as keyof typeof POPULAR_TOKENS]
+  }, [selectedNetwork])
 
-  // Load user balances for available tokens
+  // Get all supported networks for selection
+  const supportedNetworks = useMemo(() => {
+    return Object.entries(NETWORK_NAMES).map(([chainId, name]) => ({
+      chainId: parseInt(chainId),
+      name
+    }))
+  }, [])
+
+  // Load user balances for available tokens (only works for current network)
   const loadUserBalances = useCallback(async () => {
-    if (!account || !currentChainId || availableTokens.length === 0) return
+    // Only load balances if user is on the selected network
+    if (!account || !selectedNetwork || !currentChainId || selectedNetwork !== currentChainId || availableTokens.length === 0) return
 
     setIsLoadingBalances(true)
     const provider = await getProvider()
@@ -129,7 +143,7 @@ export function EnhancedPaymentSelector({
     } finally {
       setIsLoadingBalances(false)
     }
-  }, [account, currentChainId, availableTokens, getProvider])
+  }, [account, selectedNetwork, currentChainId, availableTokens, getProvider])
 
   // Load balances when dependencies change
   useEffect(() => {
@@ -138,12 +152,38 @@ export function EnhancedPaymentSelector({
 
   // Check routes when token is selected
   const checkPaymentRoutes = useCallback(async (token: any) => {
-    if (!account || !currentChainId) return
+    if (!account || !selectedNetwork) return
 
     setIsCheckingRoutes(true)
     try {
+      // Check if it's the same token on the same chain (direct transfer)
+      if (selectedNetwork === creatorChainId && 
+          token.address.toLowerCase() === creatorTokenAddress.toLowerCase()) {
+        // No LiFi needed - direct transfer
+        setAvailableRoutes([{
+          type: 'direct',
+          fromToken: token,
+          toToken: token,
+          fromAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
+          toAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
+          gasCostUSD: '2', // Estimated direct transfer cost
+          tool: 'Direct Transfer'
+        }])
+        setBestRoute({
+          type: 'direct',
+          fromToken: token,
+          toToken: token,
+          fromAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
+          toAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
+          gasCostUSD: '2',
+          tool: 'Direct Transfer'
+        })
+        setIsCheckingRoutes(false)
+        return
+      }
+
       const hasRoutes = await checkAvailableRoutes({
-        fromChainId: currentChainId,
+        fromChainId: selectedNetwork, // Use selected network instead of current
         fromTokenAddress: token.address,
         fromAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
         fromAddress: account,
@@ -172,7 +212,18 @@ export function EnhancedPaymentSelector({
     } finally {
       setIsCheckingRoutes(false)
     }
-  }, [account, currentChainId, splitAmount, creatorChainId, creatorTokenAddress, creatorAddress, checkAvailableRoutes, paymentState.availableRoutes])
+  }, [account, selectedNetwork, splitAmount, creatorChainId, creatorTokenAddress, creatorAddress, checkAvailableRoutes, paymentState.availableRoutes])
+
+  // Handle network selection
+  const handleNetworkSelect = (networkId: string) => {
+    const chainId = parseInt(networkId)
+    setSelectedNetwork(chainId)
+    // Reset token selection when network changes
+    setSelectedToken(null)
+    setBestRoute(null)
+    setAvailableRoutes([])
+    // TODO: Could also switch wallet network if user wants
+  }
 
   // Handle token selection
   const handleTokenSelect = (tokenSymbol: string) => {
@@ -188,8 +239,16 @@ export function EnhancedPaymentSelector({
     if (!selectedToken || !bestRoute || !account) return
 
     try {
+      // Handle direct transfers (same token, same chain)
+      if (bestRoute.type === 'direct') {
+        // TODO: Implement direct ERC20 transfer
+        toast.success('Direct transfer would happen here')
+        return
+      }
+
+      // Handle cross-chain/cross-token transfers via LiFi  
       await processPayment({
-        fromChainId: currentChainId!,
+        fromChainId: selectedNetwork!, // Use selected network
         fromTokenAddress: selectedToken.address,
         fromAmount: ethers.parseUnits(splitAmount, selectedToken.decimals).toString(),
         fromAddress: account,
@@ -231,25 +290,58 @@ export function EnhancedPaymentSelector({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Coins className="h-5 w-5" />
-          Choose Payment Token
+          Choose Payment Network & Token
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Pay ${splitAmount} from {NETWORK_NAMES[currentChainId as keyof typeof NETWORK_NAMES]} to {NETWORK_NAMES[creatorChainId as keyof typeof NETWORK_NAMES]}
+          Pay ${splitAmount} from any supported network to {NETWORK_NAMES[creatorChainId as keyof typeof NETWORK_NAMES]}
           {/* Show what the receiver will get */}
           <br />
           <span className="text-green-600 font-medium">
-            Receiver gets their preferred token automatically
+            Receiver gets their preferred token automatically via cross-chain routing
           </span>
         </p>
       </CardHeader>
       
       <CardContent className="space-y-6">
+        {/* Network Selection */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium">Select network to pay from:</label>
+          <Select 
+            value={selectedNetwork?.toString()} 
+            onValueChange={handleNetworkSelect}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Choose a network..." />
+            </SelectTrigger>
+            <SelectContent>
+              {supportedNetworks.map((network) => (
+                <SelectItem key={network.chainId} value={network.chainId.toString()}>
+                  <div className="flex items-center space-x-2">
+                    <span>{network.name}</span>
+                    {network.chainId === currentChainId && (
+                      <Badge variant="secondary" className="text-xs">Current</Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedNetwork && selectedNetwork !== currentChainId && (
+            <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+              💡 <strong>Network Switch Required:</strong> You'll need to switch your wallet to {NETWORK_NAMES[selectedNetwork as keyof typeof NETWORK_NAMES]} to see balances and complete the payment.
+            </div>
+          )}
+        </div>
+
         {/* Token Selection */}
         <div className="space-y-3">
           <label className="text-sm font-medium">Select token to pay with:</label>
-          <Select onValueChange={handleTokenSelect}>
+          <Select 
+            onValueChange={handleTokenSelect}
+            disabled={!selectedNetwork}
+          >
             <SelectTrigger>
-              <SelectValue placeholder="Choose a token..." />
+              <SelectValue placeholder={selectedNetwork ? "Choose a token..." : "Select network first"} />
             </SelectTrigger>
             <SelectContent>
               {availableTokens.map((token) => (
@@ -287,7 +379,7 @@ export function EnhancedPaymentSelector({
                 </span>
               </div>
               <Badge variant="secondary">
-                {NETWORK_NAMES[currentChainId as keyof typeof NETWORK_NAMES]} → {NETWORK_NAMES[creatorChainId as keyof typeof NETWORK_NAMES]}
+                {NETWORK_NAMES[selectedNetwork as keyof typeof NETWORK_NAMES]} → {NETWORK_NAMES[creatorChainId as keyof typeof NETWORK_NAMES]}
               </Badge>
             </div>
 

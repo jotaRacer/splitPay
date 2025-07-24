@@ -8,7 +8,11 @@ const createSplitSchema = Joi.object({
   participants: Joi.number().required().integer().min(2).max(50),
   description: Joi.string().optional().allow('').max(500),
   creator: Joi.string().required().pattern(/^0x[a-fA-F0-9]{40}$/),
-  creatorChain: Joi.string().required()
+  creatorChain: Joi.string().required(),
+  // Receiver preferences for where they want to receive funds
+  receiverTokenAddress: Joi.string().optional().allow(''),
+  receiverTokenSymbol: Joi.string().optional().allow(''),
+  receiverTokenDecimals: Joi.number().optional().integer().min(0).max(18)
 });
 
 const joinSplitSchema = Joi.object({
