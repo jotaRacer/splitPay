@@ -15,7 +15,6 @@ export const PrivyWalletConnect = memo(function PrivyWalletConnect() {
     isConnected, 
     connect, 
     disconnect, 
-    switchNetwork, 
     isLoading,
     user,
     getProvider,
@@ -76,12 +75,48 @@ export const PrivyWalletConnect = memo(function PrivyWalletConnect() {
 
   const currentNetwork = Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === chainId)
 
+  // Network switching function (similar to testnet-switcher)
+  const switchNetwork = async (targetChainId: number) => {
+    const provider = await getProvider()
+    if (!provider) throw new Error('No provider available')
+    
+    try {
+      await provider.send('wallet_switchEthereumChain', [
+        { chainId: `0x${targetChainId.toString(16)}` }
+      ])
+      // Update chain ID after successful switch
+      setChainId(targetChainId)
+    } catch (error: any) {
+      // If the chain hasn't been added to the user's wallet, add it
+      if (error.code === 4902) {
+        const network = Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === targetChainId)
+        if (network) {
+          await provider.send('wallet_addEthereumChain', [{
+            chainId: `0x${targetChainId.toString(16)}`,
+            chainName: network.name,
+            nativeCurrency: network.nativeCurrency,
+            rpcUrls: [network.rpcUrl],
+            blockExplorerUrls: network.blockExplorer ? [network.blockExplorer] : undefined
+          }])
+          setChainId(targetChainId)
+        }
+      } else {
+        throw error
+      }
+    }
+  }
+
   const handleNetworkSwitch = async () => {
-    await switchNetwork(SUPPORTED_NETWORKS.mantle.chainId)
-    // Reload data after network switch
-    setTimeout(() => {
-      setHasLoadedData(false) // Reset to trigger reload
-    }, 1000)
+    try {
+      await switchNetwork(SUPPORTED_NETWORKS.mantle.chainId)
+      // Reload data after network switch
+      setTimeout(() => {
+        setHasLoadedData(false) // Reset to trigger reload
+      }, 1000)
+    } catch (error: any) {
+      console.error('Error switching network:', error)
+      // You might want to show a toast or error message here
+    }
   }
 
   const formatBalance = (balance: string | null) => {
