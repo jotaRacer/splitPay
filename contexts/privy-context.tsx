@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, ReactNode, useEffect, useState } from 'react'
+import { createContext, useContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react'
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth'
 import { ethers } from 'ethers'
 
@@ -25,30 +25,30 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
   const { wallets } = useWallets()
   const [forceReady, setForceReady] = useState(false)
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Privy state:', { ready, authenticated, user: !!user, wallets: wallets.length })
-  }, [ready, authenticated, user, wallets])
+  // Memoize the primary wallet to prevent unnecessary re-renders
+  const wallet = useMemo(() => wallets?.[0] || null, [wallets])
 
-  // Force ready state after timeout to prevent infinite loading
+  // Optimize debug logging - only log when values actually change
   useEffect(() => {
-    if (!ready) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Privy state:', { ready, authenticated, user: !!user, wallets: wallets?.length || 0 })
+    }
+  }, [ready, authenticated, user, wallets?.length])
+
+  // Optimize force ready timeout - only run if actually needed
+  useEffect(() => {
+    if (!ready && !forceReady) {
       const timeout = setTimeout(() => {
         console.warn('Privy initialization timeout - forcing ready state')
         setForceReady(true)
-      }, 10000) // 10 seconds timeout
+      }, 5000) // Reduced from 10s to 5s
 
       return () => clearTimeout(timeout)
-    } else {
-      setForceReady(false)
     }
-  }, [ready])
+  }, [ready, forceReady])
 
-  // Get the connected wallet
-  const wallet = wallets[0] // First connected wallet
-  
-  // Create Web3 provider from Privy wallet
-  const getProvider = async () => {
+  // Memoize Web3 provider functions to prevent re-creation on every render
+  const getProvider = useCallback(async () => {
     if (!wallet) return null
     try {
       const provider = await wallet.getEthereumProvider()
@@ -57,9 +57,9 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
       console.error('Failed to get provider:', error)
       return null
     }
-  }
+  }, [wallet])
 
-  const getSigner = async () => {
+  const getSigner = useCallback(async () => {
     const provider = await getProvider()
     if (!provider) return null
     try {
@@ -68,9 +68,9 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
       console.error('Failed to get signer:', error)
       return null
     }
-  }
+  }, [getProvider])
 
-  const getBalance = async () => {
+  const getBalance = useCallback(async () => {
     const provider = await getProvider()
     if (!provider || !wallet?.address) return null
     try {
@@ -80,9 +80,9 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
       console.error('Failed to get balance:', error)
       return null
     }
-  }
+  }, [getProvider, wallet?.address])
 
-  const getChainId = async () => {
+  const getChainId = useCallback(async () => {
     const provider = await getProvider()
     if (!provider) return null
     try {
@@ -92,10 +92,10 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
       console.error('Failed to get chain ID:', error)
       return null
     }
-  }
+  }, [getProvider])
 
-  // Create context value with async getters
-  const contextValue: PrivyWeb3ContextType = {
+  // Memoize context value to prevent unnecessary re-renders of consuming components
+  const contextValue = useMemo<PrivyWeb3ContextType>(() => ({
     account: wallet?.address || null,
     isConnected: authenticated && !!wallet,
     connect: login,
@@ -106,7 +106,20 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
     getSigner,
     getBalance,
     getChainId,
-  }
+  }), [
+    wallet?.address,
+    authenticated,
+    wallet,
+    login,
+    logout,
+    ready,
+    forceReady,
+    user,
+    getProvider,
+    getSigner,
+    getBalance,
+    getChainId
+  ])
 
   return (
     <PrivyWeb3Context.Provider value={contextValue}>
@@ -115,28 +128,22 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
   )
 }
 
-// Main provider component - Enhanced with social login
+// Main provider component - Simplified for performance
 export function PrivyWeb3Provider({ children }: { children: ReactNode }) {
   return (
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || "your-privy-app-id"}
       config={{
-        // Login methods - Enable social login options
-        loginMethods: ['wallet', 'email', 'google', 'twitter'],
-        // Enhanced appearance
+        // Minimal login methods for faster loading
+        loginMethods: ['wallet', 'email'],
+        // Simplified appearance
         appearance: {
           theme: 'light',
-          accentColor: '#2563eb', // Blue to match your testnet theme
-          logo: undefined,
+          accentColor: '#2563eb',
         },
-        // Enhanced embedded wallet configuration
+        // Minimal embedded wallet config
         embeddedWallets: {
           createOnLogin: 'users-without-wallets'
-        },
-        // Legal settings
-        legal: {
-          termsAndConditionsUrl: undefined,
-          privacyPolicyUrl: undefined
         }
       }}
     >

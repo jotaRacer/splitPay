@@ -1,18 +1,37 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Optimizaciones de rendimiento
+  // Essential optimizations only
   experimental: {
-    optimizePackageImports: ['lucide-react', '@privy-io/react-auth'],
+    optimizePackageImports: ['lucide-react'],
   },
   
-  // Optimizaciones de webpack
+  // Enable compression for production
+  compress: true,
+  
+  // Minimal webpack config for faster dev builds
   webpack: (config, { dev, isServer }) => {
-    // Optimizar para desarrollo
+    // Only apply optimizations in development for faster builds
     if (dev) {
       config.watchOptions = {
-        poll: 1000,
-        aggregateTimeout: 300,
+        poll: false, // Disable polling for faster builds
+        aggregateTimeout: 200,
       }
+      
+      // Reduce build time in development
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: false,
+      }
+    }
+    
+    // Essential Node.js fallbacks only
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
     }
     
     return config

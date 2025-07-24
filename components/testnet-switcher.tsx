@@ -1,5 +1,6 @@
 "use client"
 
+import React, { memo, useMemo } from 'react'
 import { useState } from 'react'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { Button } from '@/components/ui/button'
@@ -9,15 +10,62 @@ import { Zap, Network, ExternalLink } from 'lucide-react'
 import { getTestnets, getNetworkByChainId } from '@/lib/networks'
 import { toast } from 'sonner'
 
-export function TestnetSwitcher() {
-  const { chainId, switchNetwork, isConnected } = usePrivyWeb3()
+export const TestnetSwitcher = memo(function TestnetSwitcher() {
+  const { getChainId, isConnected, getProvider } = usePrivyWeb3()
   const [switching, setSwitching] = useState<number | null>(null)
+  const [currentChainId, setCurrentChainId] = useState<number | null>(null)
   
-  const testnets = getTestnets()
-  const currentNetwork = chainId ? getNetworkByChainId(chainId) : null
+  // Load current chain ID
+  React.useEffect(() => {
+    const loadChainId = async () => {
+      const chainId = await getChainId()
+      setCurrentChainId(chainId)
+    }
+    if (isConnected) {
+      loadChainId()
+    }
+  }, [isConnected, getChainId])
+  
+  // Memoize expensive computations
+  const testnets = useMemo(() => getTestnets(), [])
+  const currentNetwork = useMemo(() => 
+    currentChainId ? getNetworkByChainId(currentChainId) : null, 
+    [currentChainId]
+  )
+
+  // Simple network switching function
+  const switchNetwork = async (chainId: number) => {
+    const provider = await getProvider()
+    if (!provider) throw new Error('No provider available')
+    
+    try {
+      await provider.send('wallet_switchEthereumChain', [
+        { chainId: `0x${chainId.toString(16)}` }
+      ])
+      // Update current chain ID after successful switch
+      setCurrentChainId(chainId)
+    } catch (error: any) {
+      // If the chain hasn't been added to the user's wallet, add it
+      if (error.code === 4902) {
+        const network = getNetworkByChainId(chainId)
+        if (network) {
+          await provider.send('wallet_addEthereumChain', [{
+            chainId: `0x${chainId.toString(16)}`,
+            chainName: network.name,
+            nativeCurrency: network.nativeCurrency,
+            rpcUrls: [network.rpcUrl],
+            blockExplorerUrls: network.blockExplorer ? [network.blockExplorer] : undefined
+          }])
+          setCurrentChainId(chainId)
+        }
+      } else {
+        throw error
+      }
+    }
+  }
 
   const handleSwitchNetwork = async (targetChainId: number) => {
-    if (!isConnected || !chainId) {
+    if (!isConnected || !currentChainId) {
       toast.error('Conecta tu wallet primero')
       return
     }
@@ -46,8 +94,8 @@ export function TestnetSwitcher() {
   }
 
   const getNetworkStatus = (networkChainId: number) => {
-    if (!chainId) return 'disconnected'
-    if (chainId === networkChainId) return 'active'
+    if (!currentChainId) return 'disconnected'
+    if (currentChainId === networkChainId) return 'active'
     return 'available'
   }
 
@@ -165,4 +213,4 @@ export function TestnetSwitcher() {
       </CardContent>
     </Card>
   )
-}
+})

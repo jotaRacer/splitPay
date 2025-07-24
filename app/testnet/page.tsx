@@ -1,15 +1,65 @@
 "use client"
 
+import dynamic from 'next/dynamic'
+import { Suspense } from 'react'
 import { MobileHeader } from "@/components/mobile-header"
-import { TestnetHelper } from "@/components/testnet-helper"
-import { TestnetSwitcher } from "@/components/testnet-switcher"
-
 import { PrivyWalletConnect } from "@/components/privy-wallet-connect"
-import { LifiTest } from "@/components/lifi-test"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Code, Zap, Coins, Shield } from "lucide-react"
+import { Code, Zap, Coins, Shield, Loader2 } from "lucide-react"
+
+// Lazy load heavy components for better performance
+const TestnetSwitcher = dynamic(() => 
+  import("@/components/testnet-switcher").then(m => ({ default: m.TestnetSwitcher })), 
+  { 
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <CardTitle>Loading Network Switcher...</CardTitle>
+          </div>
+        </CardHeader>
+      </Card>
+    ),
+    ssr: false 
+  }
+)
+
+const TestnetHelper = dynamic(() => 
+  import("@/components/testnet-helper").then(m => ({ default: m.TestnetHelper })), 
+  { 
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <CardTitle>Loading Testnet Helper...</CardTitle>
+          </div>
+        </CardHeader>
+      </Card>
+    ),
+    ssr: false 
+  }
+)
+
+const LifiTest = dynamic(() => 
+  import("@/components/lifi-test").then(m => ({ default: m.LifiTest })), 
+  { 
+    loading: () => (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <CardTitle>Loading Payment Test...</CardTitle>
+          </div>
+        </CardHeader>
+      </Card>
+    ),
+    ssr: false 
+  }
+)
 
 export default function TestnetPage() {
   return (
@@ -35,9 +85,32 @@ export default function TestnetPage() {
         <PrivyWalletConnect />
 
         {/* Network Switching */}
-        <TestnetSwitcher />
+        <Suspense fallback={
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <CardTitle>Loading Network Switcher...</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+        }>
+          <TestnetSwitcher />
+        </Suspense>
 
         {/* Cross-Chain Testing */}
+        <Suspense fallback={
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <CardTitle>Loading Payment Test...</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+        }>
+          <LifiTest />
+        </Suspense>
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -54,7 +127,18 @@ export default function TestnetPage() {
         </Card>
 
         {/* Testnet Helper */}
-        <TestnetHelper />
+        <Suspense fallback={
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <CardTitle>Loading Testnet Helper...</CardTitle>
+              </div>
+            </CardHeader>
+          </Card>
+        }>
+          <TestnetHelper />
+        </Suspense>
 
         {/* Debug Panel */}
         

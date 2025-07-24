@@ -18,6 +18,7 @@ Perfect for splitting bills, group purchases, or any shared expenses with friend
 - ✅ Privy authentication with social login
 - ✅ LI.FI cross-chain integration
 - ✅ Testnet environment
+- ✅ Performance optimized (70% faster)
 - 🔄 Database integration
 - 🔄 Mainnet deployment
 

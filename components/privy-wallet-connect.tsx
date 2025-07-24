@@ -1,5 +1,6 @@
 "use client"
 
+import React, { memo, useMemo } from 'react'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +9,7 @@ import { SUPPORTED_NETWORKS } from '@/lib/networks'
 import { Wallet, ExternalLink, RefreshCw, Mail, User } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 
-export function PrivyWalletConnect() {
+export const PrivyWalletConnect = memo(function PrivyWalletConnect() {
   const { 
     account, 
     isConnected, 
@@ -245,4 +246,4 @@ export function PrivyWalletConnect() {
       </CardContent>
     </Card>
   )
-} 
+}) 

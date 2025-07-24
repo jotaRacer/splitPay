@@ -1,26 +1,23 @@
 "use client"
 
+import React, { memo, useCallback, useState } from "react"
 import { MobileHeader } from "@/components/mobile-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
+import { PrivyWalletConnect } from "@/components/privy-wallet-connect"
 import { useRouter } from "next/navigation"
-import { Suspense, lazy, useState } from "react"
 
-// Lazy load ONLY essential components
-const PrivyWalletConnect = lazy(() => import("@/components/privy-wallet-connect").then(module => ({ default: module.PrivyWalletConnect })))
-
-// Ultra-light loading component
-function LoadingSpinner() {
-  return (
-    <div className="flex items-center justify-center p-4">
-      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-    </div>
-  )
-}
-
-export default function HomePage() {
+// Memoize the entire page component for better performance
+const HomePage = memo(function HomePage() {
   const router = useRouter()
   const [showAdvanced, setShowAdvanced] = useState(false)
+
+  // Memoize navigation callbacks to prevent unnecessary re-renders
+  const navigateToCreate = useCallback(() => router.push("/create"), [router])
+  const navigateToJoin = useCallback(() => router.push("/join"), [router])
+  const navigateToWalletTest = useCallback(() => router.push("/wallet-test"), [router])
+  const navigateToTestnet = useCallback(() => router.push("/testnet"), [router])
+  const toggleAdvanced = useCallback(() => setShowAdvanced(!showAdvanced), [showAdvanced])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -38,10 +35,8 @@ export default function HomePage() {
             </div>
           </div>
           
-          {/* Wallet Connection - Lazy loaded */}
-          <Suspense fallback={<LoadingSpinner />}>
-            <PrivyWalletConnect />
-          </Suspense>
+          {/* Wallet Connection - Direct import for speed */}
+          <PrivyWalletConnect />
         </section>
 
         {/* Core Actions */}
@@ -57,7 +52,7 @@ export default function HomePage() {
                 </div>
                 <ResponsiveButton 
                   className="w-full sm:w-auto !bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white"
-                  onClick={() => router.push("/create")}
+                  onClick={navigateToCreate}
                 >
                   Create New Split
                 </ResponsiveButton>
@@ -76,7 +71,7 @@ export default function HomePage() {
                 </div>
                 <ResponsiveButton 
                   className="w-full sm:w-auto !bg-blue-600 !hover:bg-blue-700 !from-blue-600 !to-blue-600 hover:!from-blue-700 hover:!to-blue-700 !text-white"
-                  onClick={() => router.push("/join")}
+                  onClick={navigateToJoin}
                 >
                   Join Existing Split
                 </ResponsiveButton>
@@ -89,7 +84,7 @@ export default function HomePage() {
         <section className="text-center">
           <ResponsiveButton 
             variant="outline"
-            onClick={() => setShowAdvanced(!showAdvanced)}
+            onClick={toggleAdvanced}
             className="w-full sm:w-auto"
           >
             {showAdvanced ? 'Hide' : 'Show'} Advanced Features
@@ -113,14 +108,14 @@ export default function HomePage() {
                     <ResponsiveButton 
                       size="sm"
                       variant="outline"
-                      onClick={() => router.push("/wallet-test")}
+                      onClick={navigateToWalletTest}
                     >
                       Wallet Test
                     </ResponsiveButton>
                     <ResponsiveButton 
                       size="sm"
                       variant="outline"
-                      onClick={() => router.push("/testnet")}
+                      onClick={navigateToTestnet}
                     >
                       Testnet
                     </ResponsiveButton>
@@ -133,4 +128,6 @@ export default function HomePage() {
       </main>
     </div>
   )
-}
+})
+
+export default HomePage

@@ -1,5 +1,6 @@
 "use client"
 
+import React, { memo } from 'react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,14 +9,34 @@ import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { ethers } from 'ethers'
 import { toast } from 'sonner'
 
-export function LifiTest() {
-  const { account, chainId, signer } = usePrivyWeb3()
+export const LifiTest = memo(function LifiTest() {
+  const { account, getChainId, getSigner } = usePrivyWeb3()
   const { checkAvailableRoutes, paymentState } = useLifiPayment()
   const [isTesting, setIsTesting] = useState(false)
+  const [currentChainId, setCurrentChainId] = useState<number | null>(null)
+
+  // Load current chain ID on mount
+  React.useEffect(() => {
+    const loadChainId = async () => {
+      const chainId = await getChainId()
+      setCurrentChainId(chainId)
+    }
+    if (account) {
+      loadChainId()
+    }
+  }, [account, getChainId])
 
   const testLifiConnection = async () => {
-    if (!account || !chainId || !signer) {
+    if (!account) {
       toast.error('Por favor conecta tu wallet primero')
+      return
+    }
+
+    const chainId = await getChainId()
+    const signer = await getSigner()
+    
+    if (!chainId || !signer) {
+      toast.error('No se pudo obtener información de la wallet')
       return
     }
 
@@ -67,7 +88,7 @@ export function LifiTest() {
         <div className="text-sm text-gray-600">
           <p>• API Key configurada: {process.env.NEXT_PUBLIC_LIFI_API_KEY ? '✅' : '❌'}</p>
           <p>• Wallet conectada: {account ? '✅' : '❌'}</p>
-          <p>• Red actual: {chainId || 'No conectado'}</p>
+          <p>• Red actual: {currentChainId || 'No conectado'}</p>
         </div>
 
         <Button 
@@ -108,4 +129,4 @@ export function LifiTest() {
       </CardContent>
     </Card>
   )
-} 
+}) 
