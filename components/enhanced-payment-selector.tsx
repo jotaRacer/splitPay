@@ -69,6 +69,7 @@ export function EnhancedPaymentSelector({
   const [selectedToken, setSelectedToken] = useState<any>(null)
   const [userBalances, setUserBalances] = useState<{ [key: string]: string }>({})
   const [isLoadingBalances, setIsLoadingBalances] = useState(false)
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false)
   const [availableRoutes, setAvailableRoutes] = useState<any[]>([])
   const [isCheckingRoutes, setIsCheckingRoutes] = useState(false)
   const [bestRoute, setBestRoute] = useState<any>(null)
@@ -236,19 +237,37 @@ export function EnhancedPaymentSelector({
 
   // Execute payment
   const handlePayment = async () => {
-    if (!selectedToken || !bestRoute || !account) return
+    if (!selectedToken || !bestRoute || !account || !selectedNetwork) return
+
+    console.log('=== Starting Payment Process ===')
+    console.log('Selected token:', selectedToken)
+    console.log('Best route:', bestRoute)
+    console.log('Account:', account)
+    console.log('Selected network:', selectedNetwork)
+    console.log('Current chain ID:', currentChainId)
+
+    setIsPaymentLoading(true)
 
     try {
-      // Handle direct transfers (same token, same chain)
-      if (bestRoute.type === 'direct') {
-        // TODO: Implement direct ERC20 transfer
-        toast.success('Direct transfer would happen here')
+      // Check if user needs to switch networks first
+      if (currentChainId !== selectedNetwork) {
+        toast.error(`Please switch your wallet to ${NETWORK_NAMES[selectedNetwork as keyof typeof NETWORK_NAMES]} network first`)
         return
       }
 
+      console.log('Network validation passed')
+
+      // Handle direct transfers (same token, same chain)
+      if (bestRoute.type === 'direct') {
+        console.log('Executing direct transfer')
+        await handleDirectTransfer()
+        return
+      }
+
+      console.log('Executing cross-chain payment via LiFi')
       // Handle cross-chain/cross-token transfers via LiFi  
       await processPayment({
-        fromChainId: selectedNetwork!, // Use selected network
+        fromChainId: selectedNetwork,
         fromTokenAddress: selectedToken.address,
         fromAmount: ethers.parseUnits(splitAmount, selectedToken.decimals).toString(),
         fromAddress: account,
@@ -261,6 +280,83 @@ export function EnhancedPaymentSelector({
     } catch (error: any) {
       console.error('Payment failed:', error)
       toast.error(error.message || 'Payment failed')
+    } finally {
+      setIsPaymentLoading(false)
+    }
+  }
+
+  // Handle direct ERC20 transfers (same chain, same token)
+  const handleDirectTransfer = async () => {
+    if (!selectedToken || !account) return
+
+    try {
+      console.log('Starting direct transfer...')
+      console.log('Selected token:', selectedToken)
+      console.log('Creator address:', creatorAddress)
+      console.log('Split amount:', splitAmount)
+
+      const provider = await getProvider()
+      const signer = await getSigner()
+      
+      if (!provider || !signer) {
+        throw new Error('Could not get provider or signer. Please make sure your wallet is connected.')
+      }
+
+      console.log('Provider and signer obtained successfully')
+
+      const amount = ethers.parseUnits(splitAmount, selectedToken.decimals)
+      console.log('Parsed amount:', amount.toString())
+
+      let txHash = ''
+
+      if (selectedToken.address === '0x0000000000000000000000000000000000000000') {
+        // Native token transfer (ETH, MATIC, etc.)
+        console.log('Sending native token transfer...')
+        
+        const tx = await signer.sendTransaction({
+          to: creatorAddress,
+          value: amount
+        })
+        
+        console.log('Transaction sent, waiting for confirmation...')
+        await tx.wait() // Wait for transaction confirmation
+        
+        txHash = tx.hash
+        toast.success(`Payment confirmed! TX: ${tx.hash.slice(0, 10)}...`)
+        console.log('Native token transfer confirmed:', tx.hash)
+      } else {
+        // ERC20 token transfer
+        console.log('Sending ERC20 token transfer...')
+        
+        const tokenContract = new ethers.Contract(
+          selectedToken.address,
+          ['function transfer(address to, uint256 amount) returns (bool)'],
+          signer
+        )
+        
+        const tx = await tokenContract.transfer(creatorAddress, amount)
+        console.log('Transaction sent, waiting for confirmation...')
+        await tx.wait() // Wait for transaction confirmation
+        
+        txHash = tx.hash
+        toast.success(`Payment confirmed! TX: ${tx.hash.slice(0, 10)}...`)
+        console.log('ERC20 transfer confirmed:', tx.hash)
+      }
+
+      // TODO: Call backend to mark participant as paid
+      // This would integrate with the split's join API to mark payment complete
+      console.log('Payment completed with transaction:', txHash)
+      
+    } catch (error: any) {
+      console.error('Direct transfer failed:', error)
+      if (error.code === 'ACTION_REJECTED') {
+        toast.error('Transaction was cancelled by user')
+      } else if (error.code === 'INSUFFICIENT_FUNDS') {
+        toast.error('Insufficient funds for this transaction')
+      } else {
+        toast.error(`Payment failed: ${error.message || 'Unknown error'}`)
+      }
+      throw error
     }
   }
 
@@ -405,20 +501,35 @@ export function EnhancedPaymentSelector({
             )}
 
             {/* Payment Button */}
-            <Button 
-              onClick={handlePayment}
-              disabled={!bestRoute || paymentState.isLoading || isCheckingRoutes}
-              className="w-full"
-            >
-              {paymentState.isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Processing Payment...
-                </>
-              ) : (
-                `Pay ${splitAmount} ${selectedToken.symbol}`
-              )}
-            </Button>
+            {currentChainId !== selectedNetwork ? (
+              <div className="space-y-3">
+                <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                  ⚠️ <strong>Network Switch Required:</strong> Switch your wallet to {NETWORK_NAMES[selectedNetwork as keyof typeof NETWORK_NAMES]} to complete the payment.
+                </div>
+                <Button 
+                  onClick={handlePayment}
+                  disabled={true}
+                  className="w-full"
+                >
+                  Switch to {NETWORK_NAMES[selectedNetwork as keyof typeof NETWORK_NAMES]} First
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={handlePayment}
+                disabled={!bestRoute || paymentState.isLoading || isCheckingRoutes || isPaymentLoading}
+                className="w-full"
+              >
+                {paymentState.isLoading || isPaymentLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Processing Payment...
+                  </>
+                ) : (
+                  `Pay ${splitAmount} ${selectedToken.symbol}`
+                )}
+              </Button>
+            )}
           </div>
         )}
 
