@@ -1,4 +1,4 @@
-const SplitService = require('../services/SplitService');
+const DatabaseService = require('../../services/databaseService');
 const Joi = require('joi');
 
 // Esquemas de validación
@@ -48,15 +48,90 @@ class SplitController {
 
       console.log('Validation passed, creating split with data:', value);
 
-      // Crear el split
-      const split = SplitService.createSplit(value);
+      // 1. Buscar o crear usuario basado en la dirección de wallet
+      let user = await DatabaseService.getUserByWalletAddress(value.creator);
+      
+      if (!user.success) {
+        // Crear nuevo usuario si no existe
+        const timestamp = Date.now();
+        const userData = {
+          email: `${value.creator.slice(0, 8)}_${timestamp}@splitpay.local`, // Email único
+          name: `User ${value.creator.slice(0, 8)}...`,
+          wallet_address: value.creator // Agregar la dirección de wallet
+        };
+        
+        const createUserResult = await DatabaseService.createUser(userData);
+        if (!createUserResult.success) {
+          throw new Error(`Error creating user: ${createUserResult.error}`);
+        }
+        user = createUserResult;
+      }
 
-      console.log('Split created successfully:', split.toJSON());
+      // 2. Obtener el network_id por chain_id
+      const networks = await DatabaseService.getActiveNetworks();
+      if (!networks.success) {
+        throw new Error('Error getting networks');
+      }
+      
+      const network = networks.data.find(n => n.chain_id === parseInt(value.creatorChain));
+      if (!network) {
+        throw new Error(`Network with chain_id ${value.creatorChain} not found`);
+      }
+
+      // 3. Generar token único
+      const tokenCode = await DatabaseService.generateTokenCode();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // Expira en 1 semana
+
+      // 4. Crear el split en Supabase
+      const splitData = {
+        creator_id: user.data.id, // Usar el UUID del usuario
+        name: value.name,
+        description: value.description || '',
+        total_amount: value.amount,
+        participants_count: value.participants,
+        network_id: network.id, // Usar el UUID del network
+        creator_wallet_address: value.creator,
+        status: 'pending'
+      };
+
+      const splitResult = await DatabaseService.createSplit(splitData);
+      
+      if (!splitResult.success) {
+        throw new Error(splitResult.error);
+      }
+
+      // 5. Crear el token
+      const tokenData = {
+        split_id: splitResult.data.id,
+        token_code: tokenCode,
+        expires_at: expiresAt.toISOString()
+      };
+
+      const tokenResult = await DatabaseService.createToken(tokenData);
+      
+      if (!tokenResult.success) {
+        throw new Error(tokenResult.error);
+      }
+
+      // 6. Agregar el creador como participante
+      const participantData = {
+        split_id: splitResult.data.id,
+        user_id: user.data.id, // Usar el UUID del usuario
+        role: 'creator'
+      };
+
+      await DatabaseService.addParticipant(participantData);
+
+      console.log('Split created successfully:', splitResult.data);
 
       res.status(201).json({
         success: true,
         message: 'Split created successfully',
-        data: split.toJSON()
+        data: {
+          ...splitResult.data,
+          token: tokenCode
+        }
       });
 
     } catch (error) {
@@ -82,8 +157,27 @@ class SplitController {
         });
       }
 
-      const split = SplitService.getSplitByToken(token);
-      if (!split) {
+      // Buscar el token en la base de datos
+      const tokenResult = await DatabaseService.getTokenByCode(token);
+      if (!tokenResult.success) {
+        return res.status(404).json({
+          success: false,
+          message: 'Split not found'
+        });
+      }
+
+      // Verificar si el token es válido
+      const isValid = await DatabaseService.isTokenValid(token);
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Token has expired'
+        });
+      }
+
+      // Obtener el split completo con toda la información
+      const splitResult = await DatabaseService.getSplitById(tokenResult.data.split_id);
+      if (!splitResult.success) {
         return res.status(404).json({
           success: false,
           message: 'Split not found'
@@ -92,7 +186,7 @@ class SplitController {
 
       res.json({
         success: true,
-        data: split.toJSON()
+        data: splitResult.data
       });
 
     } catch (error) {
@@ -120,13 +214,100 @@ class SplitController {
 
       const { token, participantAddress, participantChain } = value;
 
-      // Unirse al split
-      const split = SplitService.joinSplit(token, participantAddress, participantChain);
+      // 1. Buscar el token y verificar que sea válido
+      const tokenResult = await DatabaseService.getTokenByCode(token);
+      if (!tokenResult.success) {
+        return res.status(404).json({
+          success: false,
+          message: 'Split not found'
+        });
+      }
+
+      const isValid = await DatabaseService.isTokenValid(token);
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Token has expired'
+        });
+      }
+
+      // 2. Obtener el split
+      const splitResult = await DatabaseService.getSplitById(tokenResult.data.split_id);
+      if (!splitResult.success) {
+        return res.status(404).json({
+          success: false,
+          message: 'Split not found'
+        });
+      }
+
+      const split = splitResult.data;
+
+      // 3. Verificar que el split esté activo
+      if (split.status !== 'pending') {
+        return res.status(400).json({
+          success: false,
+          message: 'Split is not active'
+        });
+      }
+
+      // 4. Verificar que no esté lleno
+      const participants = await DatabaseService.getParticipantsBySplit(split.id);
+      if (participants.success && participants.data.length >= split.participants_count) {
+        return res.status(400).json({
+          success: false,
+          message: 'Split is full'
+        });
+      }
+
+      // 5. Buscar o crear el usuario participante
+      let participantUser = await DatabaseService.getUserByWalletAddress(participantAddress);
+      
+      if (!participantUser.success) {
+        const timestamp = Date.now();
+        const userData = {
+          email: `${participantAddress.slice(0, 8)}_${timestamp}@splitpay.local`,
+          name: `User ${participantAddress.slice(0, 8)}...`,
+          wallet_address: participantAddress
+        };
+        
+        const createUserResult = await DatabaseService.createUser(userData);
+        if (!createUserResult.success) {
+          throw new Error(`Error creating participant user: ${createUserResult.error}`);
+        }
+        participantUser = createUserResult;
+      }
+
+      // 6. Verificar que el usuario no esté ya en el split
+      const isAlreadyParticipant = await DatabaseService.isUserParticipant(split.id, participantUser.data.id);
+      if (isAlreadyParticipant) {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already joined this split'
+        });
+      }
+
+      // 7. Agregar el participante
+      const participantData = {
+        split_id: split.id,
+        user_id: participantUser.data.id,
+        role: 'participant'
+      };
+
+      const addParticipantResult = await DatabaseService.addParticipant(participantData);
+      if (!addParticipantResult.success) {
+        throw new Error(`Error adding participant: ${addParticipantResult.error}`);
+      }
+
+      // 8. Registrar el uso del token
+      await DatabaseService.logTokenUsage(tokenResult.data.id, participantUser.data.id);
+
+      // 9. Obtener el split actualizado
+      const updatedSplitResult = await DatabaseService.getSplitById(split.id);
 
       res.json({
         success: true,
         message: 'Successfully joined split',
-        data: split.toJSON()
+        data: updatedSplitResult.data
       });
 
     } catch (error) {

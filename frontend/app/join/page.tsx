@@ -88,8 +88,8 @@ export default function JoinSplitPage() {
       console.log("✅ Split found:", split)
 
       // Check if user is already a participant
-      const existingParticipant = split.participantsList?.find((p: any) => 
-        p.address?.toLowerCase() === account.toLowerCase()
+      const existingParticipant = split.participants?.find((p: any) => 
+        p.user?.wallet_address?.toLowerCase() === account.toLowerCase()
       )
 
       if (existingParticipant) {
@@ -97,7 +97,7 @@ export default function JoinSplitPage() {
         setState({
           step: 'payment',
           splitInfo: split,
-          participantId: existingParticipant.address,
+          participantId: existingParticipant.user?.wallet_address,
           error: null
         })
         toast.success("Welcome back! You can now complete your payment.")
@@ -118,9 +118,9 @@ export default function JoinSplitPage() {
         setState({
           step: 'payment',
           splitInfo: joinResponse.data,
-          participantId: joinResponse.data.participantsList?.find((p: any) => 
-            p.address?.toLowerCase() === account.toLowerCase()
-          )?.address || null,
+          participantId: joinResponse.data.participants?.find((p: any) => 
+            p.user?.wallet_address?.toLowerCase() === account.toLowerCase()
+          )?.user?.wallet_address || null,
           error: null
         })
         toast.success("Successfully joined the split! You can now make your payment.")
@@ -138,25 +138,22 @@ export default function JoinSplitPage() {
       }))
       toast.error(errorMessage)
     }
-  }, [joinToken, isConnected, account])
+  }, [isConnected, account])
 
   // Check URL parameters on load
   useEffect(() => {
     const urlToken = searchParams.get("token") || searchParams.get("id")
     if (urlToken) {
       setJoinToken(urlToken)
-      if (isConnected && account) {
-        handleJoinSplit(urlToken)
-      }
     }
-  }, [searchParams, isConnected, account, handleJoinSplit])
+  }, [searchParams])
 
-  // Auto-join if wallet is connected and token is in URL
+  // Auto-join if wallet is connected and token is available
   useEffect(() => {
     if (joinToken && isConnected && account && state.step === 'input') {
       handleJoinSplit(joinToken)
     }
-  }, [joinToken, isConnected, account, state.step, handleJoinSplit])
+  }, [joinToken, isConnected, account, state.step])
 
   const handlePaymentSuccess = (txHash: string) => {
     console.log("💰 Payment successful with transaction:", txHash)
@@ -274,7 +271,7 @@ export default function JoinSplitPage() {
     if (!state.splitInfo) return null
 
     const split = state.splitInfo
-    const isCreator = split.creator?.toLowerCase() === account?.toLowerCase()
+    const isCreator = split.creator_wallet_address?.toLowerCase() === account?.toLowerCase()
 
     return (
       <>
@@ -292,16 +289,16 @@ export default function JoinSplitPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Total Amount:</span>
-                  <span className="font-semibold text-lg">${split.amount}</span>
+                  <span className="font-semibold text-lg">${split.total_amount}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Participants:</span>
-                  <span className="font-medium">{split.participants}</span>
+                  <span className="font-medium">{split.participants_count}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Your Share:</span>
                   <Badge variant="secondary" className="text-lg font-semibold px-3 py-1">
-                    ${split.amountPerPerson}
+                    ${(split.total_amount / split.participants_count).toFixed(2)}
                   </Badge>
                 </div>
               </div>
@@ -376,14 +373,14 @@ export default function JoinSplitPage() {
                 <DollarSign className="h-6 w-6" />
                 Complete Your Payment
               </CardTitle>
-              <p className="text-sm text-gray-600">
-                Pay your ${split.amountPerPerson} share using any supported cryptocurrency
-              </p>
+                              <p className="text-sm text-gray-600">
+                  Pay your ${(split.total_amount / split.participants_count).toFixed(2)} share using any supported cryptocurrency
+                </p>
             </CardHeader>
             <CardContent>
               <EnhancedPaymentSelector
-                splitAmount={split.amountPerPerson?.toString() || "0"}
-                creatorAddress={split.creator || ""}
+                splitAmount={((split.total_amount / split.participants_count) || 0).toString()}
+                creatorAddress={split.creator_wallet_address || ""}
                 creatorChainId={parseInt(split.creatorChain || "1")}
                 creatorTokenAddress={split.receiverTokenAddress || "0x0000000000000000000000000000000000000000"}
                 className="w-full"
