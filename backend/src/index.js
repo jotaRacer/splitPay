@@ -3,12 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
-
 const splitRoutes = require('./routes/splitRoutes');
-
 const app = express();
 const PORT = process.env.PORT || 3001;
-
 // Configurar rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -18,7 +15,6 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
   }
 });
-
 // Middleware
 app.use(helmet());
 app.use(cors({
@@ -28,13 +24,11 @@ app.use(cors({
 app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
 // Logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
-
 // Health check
 app.get('/health', (req, res) => {
   res.json({
@@ -44,10 +38,8 @@ app.get('/health', (req, res) => {
     version: '1.0.0'
   });
 });
-
 // API routes
 app.use('/api/splits', splitRoutes);
-
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -55,7 +47,6 @@ app.use('*', (req, res) => {
     message: 'Route not found'
   });
 });
-
 // Error handler
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
@@ -65,7 +56,6 @@ app.use((error, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   });
 });
-
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 SplitPay Backend running on port ${PORT}`);
@@ -79,4 +69,4 @@ if (process.env.NODE_ENV === 'development') {
     const SplitService = require('./services/SplitService');
     SplitService.cleanup();
   }, 60 * 60 * 1000); // 1 hora
-} 
+}

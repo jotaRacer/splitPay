@@ -7,42 +7,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { useLifiPayment } from '@/hooks/use-lifi-payment'
+import { useUserTokens } from '@/hooks/use-user-tokens'
 import { Loader2, Coins, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { ethers } from 'ethers'
-
-// Popular tokens across different chains
-const POPULAR_TOKENS = {
-  1: [ // Ethereum
-    { symbol: 'ETH', address: '0x0000000000000000000000000000000000000000', name: 'Ether', decimals: 18 },
-    { symbol: 'USDC', address: '0xA0b86a33E6441e627ee7E8e4E1F60a3C5c3A8C86', name: 'USD Coin', decimals: 6 },
-    { symbol: 'USDT', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', name: 'Tether USD', decimals: 6 },
-    { symbol: 'DAI', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', name: 'Dai Stablecoin', decimals: 18 },
-  ],
-  137: [ // Polygon
-    { symbol: 'MATIC', address: '0x0000000000000000000000000000000000000000', name: 'Polygon', decimals: 18 },
-    { symbol: 'USDC', address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', name: 'USD Coin', decimals: 6 },
-    { symbol: 'USDT', address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', name: 'Tether USD', decimals: 6 },
-    { symbol: 'DAI', address: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063', name: 'Dai Stablecoin', decimals: 18 },
-  ],
-  8453: [ // Base
-    { symbol: 'ETH', address: '0x0000000000000000000000000000000000000000', name: 'Ether', decimals: 18 },
-    { symbol: 'USDC', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', name: 'USD Coin', decimals: 6 },
-    { symbol: 'DAI', address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', name: 'Dai Stablecoin', decimals: 18 },
-  ],
-  42161: [ // Arbitrum
-    { symbol: 'ETH', address: '0x0000000000000000000000000000000000000000', name: 'Ether', decimals: 18 },
-    { symbol: 'USDC', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', name: 'USD Coin', decimals: 6 },
-    { symbol: 'USDT', address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', name: 'Tether USD', decimals: 6 },
-    { symbol: 'DAI', address: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1', name: 'Dai Stablecoin', decimals: 18 },
-  ]
-}
 
 const NETWORK_NAMES = {
   1: 'Ethereum',
   137: 'Polygon', 
   8453: 'Base',
-  42161: 'Arbitrum'
+  42161: 'Arbitrum',
+  5000: 'Mantle'
 }
 
 interface EnhancedPaymentSelectorProps {
@@ -67,8 +42,6 @@ export function EnhancedPaymentSelector({
   const [currentChainId, setCurrentChainId] = useState<number | null>(null)
   const [selectedNetwork, setSelectedNetwork] = useState<number | null>(null) // New: Allow network selection
   const [selectedToken, setSelectedToken] = useState<any>(null)
-  const [userBalances, setUserBalances] = useState<{ [key: string]: string }>({})
-  const [isLoadingBalances, setIsLoadingBalances] = useState(false)
   const [isPaymentLoading, setIsPaymentLoading] = useState(false)
   const [availableRoutes, setAvailableRoutes] = useState<any[]>([])
   const [isCheckingRoutes, setIsCheckingRoutes] = useState(false)
@@ -89,13 +62,13 @@ export function EnhancedPaymentSelector({
     loadChainId()
   }, [account, getChainId, selectedNetwork])
 
-  // Get available tokens for selected network (not just current)
+  // Use the new user tokens hook
+  const { tokens: userTokens, isLoading: isLoadingUserTokens } = useUserTokens(selectedNetwork)
+  
+  // Get available tokens for selected network - now shows actual user tokens
   const availableTokens = useMemo(() => {
-    if (!selectedNetwork || !POPULAR_TOKENS[selectedNetwork as keyof typeof POPULAR_TOKENS]) {
-      return []
-    }
-    return POPULAR_TOKENS[selectedNetwork as keyof typeof POPULAR_TOKENS]
-  }, [selectedNetwork])
+    return userTokens || []
+  }, [userTokens])
 
   // Get all supported networks for selection
   const supportedNetworks = useMemo(() => {
@@ -105,51 +78,19 @@ export function EnhancedPaymentSelector({
     }))
   }, [])
 
-  // Load user balances for available tokens (only works for current network)
-  const loadUserBalances = useCallback(async () => {
-    // Only load balances if user is on the selected network
-    if (!account || !selectedNetwork || !currentChainId || selectedNetwork !== currentChainId || availableTokens.length === 0) return
-
-    setIsLoadingBalances(true)
-    const provider = await getProvider()
-    if (!provider) return
-
+  // Since we now get balances from the hook, create a simple mapping
+  const userBalances = useMemo(() => {
     const balances: { [key: string]: string } = {}
-
-    try {
-      for (const token of availableTokens) {
-        if (token.address === '0x0000000000000000000000000000000000000000') {
-          // Native token (ETH, MATIC, etc.)
-          const balance = await provider.getBalance(account)
-          balances[token.symbol] = ethers.formatUnits(balance, token.decimals)
-        } else {
-          // ERC20 token
-          try {
-            const tokenContract = new ethers.Contract(
-              token.address,
-              ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)'],
-              provider
-            )
-            const balance = await tokenContract.balanceOf(account)
-            balances[token.symbol] = ethers.formatUnits(balance, token.decimals)
-          } catch (error) {
-            console.warn(`Failed to load balance for ${token.symbol}:`, error)
-            balances[token.symbol] = '0'
-          }
-        }
+    userTokens.forEach(token => {
+      if (token.balance) {
+        balances[token.symbol] = token.balance
       }
-      setUserBalances(balances)
-    } catch (error) {
-      console.error('Error loading balances:', error)
-    } finally {
-      setIsLoadingBalances(false)
-    }
-  }, [account, selectedNetwork, currentChainId, availableTokens, getProvider])
+    })
+    return balances
+  }, [userTokens])
 
-  // Load balances when dependencies change
-  useEffect(() => {
-    loadUserBalances()
-  }, [loadUserBalances])
+  // We can remove the manual balance loading since useUserTokens handles it
+  const isLoadingBalances = isLoadingUserTokens
 
   // Check routes when token is selected
   const checkPaymentRoutes = useCallback(async (token: any) => {
