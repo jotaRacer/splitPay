@@ -242,10 +242,18 @@ export function useLifiPayment() {
       const provider = await getProvider()
       if (!provider) return false
 
+      // Convert amount string to BigInt (amount is already in wei/raw units)
+      const requiredAmount = BigInt(amount)
+
       if (tokenAddress === ethers.ZeroAddress) {
         // Token nativo (ETH, MATIC, etc.)
         const balance = await provider.getBalance(account!)
-        return balance >= ethers.parseEther(amount)
+        console.log('Native token balance check:', {
+          balance: balance.toString(),
+          required: requiredAmount.toString(),
+          hasEnough: balance >= requiredAmount
+        })
+        return balance >= requiredAmount
       } else {
         // Token ERC-20
         const tokenContract = new ethers.Contract(
@@ -254,8 +262,13 @@ export function useLifiPayment() {
           provider
         )
         const balance = await tokenContract.balanceOf(account!)
-        const decimals = await tokenContract.decimals()
-        return balance >= ethers.parseUnits(amount, decimals)
+        console.log('ERC-20 token balance check:', {
+          tokenAddress,
+          balance: balance.toString(),
+          required: requiredAmount.toString(),
+          hasEnough: balance >= requiredAmount
+        })
+        return balance >= requiredAmount
       }
     } catch (error) {
       console.error('Error al verificar saldo:', error)

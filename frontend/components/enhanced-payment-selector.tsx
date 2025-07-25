@@ -206,11 +206,25 @@ export function EnhancedPaymentSelector({
       }
 
       console.log('Executing cross-chain payment via LiFi')
+      
+      const fromAmount = ethers.parseUnits(splitAmount, selectedToken.decimals).toString()
+      console.log('Payment parameters:', {
+        fromChainId: selectedNetwork,
+        fromTokenAddress: selectedToken.address,
+        fromAmount: fromAmount,
+        fromAmountFormatted: `${splitAmount} ${selectedToken.symbol}`,
+        fromAddress: account,
+        toChainId: creatorChainId,
+        toTokenAddress: creatorTokenAddress,
+        toAddress: creatorAddress,
+        selectedTokenDecimals: selectedToken.decimals
+      })
+      
       // Handle cross-chain/cross-token transfers via LiFi  
       await processPayment({
         fromChainId: selectedNetwork,
         fromTokenAddress: selectedToken.address,
-        fromAmount: ethers.parseUnits(splitAmount, selectedToken.decimals).toString(),
+        fromAmount: fromAmount,
         fromAddress: account,
         toChainId: creatorChainId,
         toTokenAddress: creatorTokenAddress,
