@@ -27,13 +27,15 @@ export function LifiPaymentButton({
   className
 }: LifiPaymentButtonProps) {
   const { account, getSigner, getProvider } = usePrivyWeb3()
-  const { processPayment, paymentState, clearPaymentState } = useLifiPayment()
+  const { checkAvailableRoutes, paymentState, clearPaymentState, processPayment } = useLifiPayment()
   const { executePaymentRequest, state: paymentRequestState } = usePaymentRequest()
   const { validateAndSwitchNetwork, isNetworkSupported } = useNetworkValidator()
   const [isProcessing, setIsProcessing] = useState(false)
   const [balance, setBalance] = useState<string>('0')
   const [hasInsufficientBalance, setHasInsufficientBalance] = useState(false)
   const [currentChainId, setCurrentChainId] = useState<number | null>(null)
+  const [calculatedAmount, setCalculatedAmount] = useState<string>(splitAmount)
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false)
 
   // Check balance when account or chainId changes
   useEffect(() => {
@@ -60,8 +62,8 @@ export function LifiPaymentButton({
         const balanceEth = ethers.formatEther(balanceWei)
         setBalance(balanceEth)
 
-        // Check if balance is sufficient for the transaction
-        const requiredAmount = parseFloat(splitAmount)
+        // Check if balance is sufficient for the transaction using calculated amount
+        const requiredAmount = parseFloat(calculatedAmount)
         const currentBalance = parseFloat(balanceEth)
         setHasInsufficientBalance(currentBalance < requiredAmount)
       } catch (error) {
@@ -71,7 +73,53 @@ export function LifiPaymentButton({
     }
 
     checkBalance()
-  }, [account, getProvider, getSigner, splitAmount])
+  }, [account, getProvider, getSigner, calculatedAmount])
+
+  // Get Li.Fi quote to calculate exact amount when component loads
+  useEffect(() => {
+    const getQuoteForAmount = async () => {
+      if (!account || !currentChainId) return
+
+      // Skip if same network (no Li.Fi needed)
+      const isSameNetwork = currentChainId === creatorChainId
+      if (isSameNetwork) {
+        setCalculatedAmount(splitAmount)
+        return
+      }
+
+      setIsLoadingQuote(true)
+      try {
+        const hasRoutes = await checkAvailableRoutes({
+          fromChainId: currentChainId,
+          fromTokenAddress: ethers.ZeroAddress, // Native token by default
+          fromAmount: ethers.parseEther(splitAmount).toString(),
+          fromAddress: account,
+          toChainId: creatorChainId,
+          toTokenAddress: creatorTokenAddress,
+          toAddress: creatorAddress
+        })
+
+        if (hasRoutes && paymentState.quote) {
+          // Calculate the amount needed based on Li.Fi quote
+          const fromAmount = ethers.formatEther(paymentState.quote.action.fromAmount)
+          setCalculatedAmount(fromAmount)
+          console.log('💰 Li.Fi Quote Updated:', {
+            original: splitAmount,
+            calculated: fromAmount,
+            fromAmountUSD: paymentState.quote.estimate.fromAmountUSD,
+            toAmountUSD: paymentState.quote.estimate.toAmountUSD
+          })
+        }
+      } catch (error) {
+        console.error('Error getting Li.Fi quote:', error)
+        setCalculatedAmount(splitAmount) // Fallback to original amount
+      } finally {
+        setIsLoadingQuote(false)
+      }
+    }
+
+    getQuoteForAmount()
+  }, [account, currentChainId, creatorChainId, splitAmount, creatorTokenAddress, creatorAddress, checkAvailableRoutes, paymentState.quote])
 
   const handlePayment = async () => {
     if (!account || !currentChainId) {
@@ -90,9 +138,9 @@ export function LifiPaymentButton({
       return
     }
 
-    // Validate amount
+    // Validate amount using calculated amount
     try {
-      const amountWei = ethers.parseEther(splitAmount)
+      const amountWei = ethers.parseEther(calculatedAmount)
       if (amountWei <= 0) {
         toast.error('Monto inválido')
         return
@@ -121,9 +169,9 @@ export function LifiPaymentButton({
         
         const paymentRequestParams: PaymentRequestParams = {
           to: creatorAddress,
-          value: splitAmount,
+          value: calculatedAmount, // Use calculated amount
           chainId: currentChainId,
-          memo: `Split Pay - ${splitAmount} ${getNetworkSymbol(currentChainId)}`
+          memo: `Split Pay - ${calculatedAmount} ${getNetworkSymbol(currentChainId)}`
         }
 
         await executePaymentRequest(paymentRequestParams)
@@ -143,7 +191,7 @@ export function LifiPaymentButton({
       const paymentParams: PaymentParams = {
         fromChainId: currentChainId,
         fromTokenAddress: ethers.ZeroAddress, // Token nativo por defecto
-        fromAmount: ethers.parseEther(splitAmount).toString(), // Convert to wei
+        fromAmount: ethers.parseEther(calculatedAmount).toString(), // Use calculated amount in wei
         fromAddress: account,
         toChainId: creatorChainId,
         toTokenAddress: creatorTokenAddress,
@@ -176,6 +224,15 @@ export function LifiPaymentButton({
   }
 
   const getButtonContent = () => {
+    if (isLoadingQuote) {
+      return (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Getting quote...
+        </>
+      )
+    }
+
     if (paymentState.isLoading || isProcessing || paymentRequestState.isLoading) {
       return (
         <>
@@ -214,15 +271,18 @@ export function LifiPaymentButton({
 
     // Check if same network or cross-chain
     const isSameNetwork = currentChainId === creatorChainId
+    const displayAmount = parseFloat(calculatedAmount).toFixed(6)
+    const networkSymbol = currentChainId ? getNetworkSymbol(currentChainId) : 'ETH'
+    
     return isSameNetwork ? (
       <>
         <Wallet className="mr-2 h-4 w-4" />
-        Pagar en Wallet
+        Pay {displayAmount} {networkSymbol}
       </>
     ) : (
       <>
         <Wallet className="mr-2 h-4 w-4" />
-        Pagar con LI.FI
+        Pay {displayAmount} {networkSymbol} (via Li.Fi)
       </>
     )
   }
@@ -234,7 +294,7 @@ export function LifiPaymentButton({
   }
 
   const isDisabled = () => {
-    return !account || paymentState.isLoading || isProcessing || paymentState.isCheckingRoutes || paymentRequestState.isLoading || hasInsufficientBalance
+    return !account || paymentState.isLoading || isProcessing || paymentState.isCheckingRoutes || paymentRequestState.isLoading || hasInsufficientBalance || isLoadingQuote
   }
 
   return (
@@ -254,9 +314,17 @@ export function LifiPaymentButton({
           Balance: {parseFloat(balance).toFixed(4)} {isTestnetChainId(currentChainId) ? '(Testnet)' : ''} 
           {hasInsufficientBalance && (
             <span className="text-red-600 ml-2">
-              (Insuficiente - Necesitas {splitAmount})
+              (Need {calculatedAmount} - calculated via Li.Fi)
             </span>
           )}
+        </div>
+      )}
+
+      {/* Quote information */}
+      {paymentState.quote && calculatedAmount !== splitAmount && (
+        <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+          💡 Li.Fi optimized: Pay {parseFloat(calculatedAmount).toFixed(6)} instead of {splitAmount} 
+          (≈${paymentState.quote.estimate.fromAmountUSD} → ${paymentState.quote.estimate.toAmountUSD})
         </div>
       )}
 

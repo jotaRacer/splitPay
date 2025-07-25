@@ -98,47 +98,70 @@ export function EnhancedPaymentSelector({
 
     setIsCheckingRoutes(true)
     try {
+      // Calculate the amount needed in the selected token based on splitAmount (USD value)
+      const splitAmountWei = ethers.parseUnits(splitAmount, token.decimals).toString()
+      
       // Check if it's the same token on the same chain (direct transfer)
       if (selectedNetwork === creatorChainId && 
           token.address.toLowerCase() === creatorTokenAddress.toLowerCase()) {
-        // No LiFi needed - direct transfer
+        // No LiFi needed - direct transfer, exact amount
         setAvailableRoutes([{
           type: 'direct',
           fromToken: token,
           toToken: token,
-          fromAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
-          toAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
+          fromAmount: splitAmountWei,
+          toAmount: splitAmountWei,
           gasCostUSD: '2', // Estimated direct transfer cost
-          tool: 'Direct Transfer'
+          tool: 'Direct Transfer',
+          exactAmount: splitAmount, // Store the original USD amount
+          calculatedFromAmount: splitAmount // Amount user needs to pay
         }])
         setBestRoute({
           type: 'direct',
           fromToken: token,
           toToken: token,
-          fromAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
-          toAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
+          fromAmount: splitAmountWei,
+          toAmount: splitAmountWei,
           gasCostUSD: '2',
-          tool: 'Direct Transfer'
+          tool: 'Direct Transfer',
+          exactAmount: splitAmount,
+          calculatedFromAmount: splitAmount
         })
         setIsCheckingRoutes(false)
         return
       }
 
+      // For cross-chain, we need to get Li.Fi quote to calculate exact amount needed
       const hasRoutes = await checkAvailableRoutes({
         fromChainId: selectedNetwork, // Use selected network instead of current
         fromTokenAddress: token.address,
-        fromAmount: ethers.parseUnits(splitAmount, token.decimals).toString(),
+        fromAmount: splitAmountWei, // Use the wei amount as starting point
         fromAddress: account,
         toChainId: creatorChainId,
         toTokenAddress: creatorTokenAddress,
         toAddress: creatorAddress
       })
 
-      // Get the actual routes from payment state
-      if (hasRoutes && paymentState.availableRoutes) {
-        setAvailableRoutes(paymentState.availableRoutes)
+      // Get the actual routes from payment state and enhance with calculated amounts
+      if (hasRoutes && paymentState.availableRoutes && paymentState.quote) {
+        const enhancedRoutes = paymentState.availableRoutes.map(route => {
+          // Calculate the actual amount user needs to pay based on Li.Fi quote
+          const quote = paymentState.quote
+          const calculatedFromAmount = ethers.formatUnits(quote.action.fromAmount, token.decimals)
+          
+          return {
+            ...route,
+            calculatedFromAmount: calculatedFromAmount, // Amount user actually needs to pay
+            exactAmount: splitAmount, // Original target amount
+            fromAmountUSD: quote.estimate.fromAmountUSD,
+            toAmountUSD: quote.estimate.toAmountUSD,
+            quote: quote // Store full quote for reference
+          }
+        })
+        
+        setAvailableRoutes(enhancedRoutes)
         // Select the best route (lowest cost)
-        const best = paymentState.availableRoutes.reduce((prev: any, current: any) => 
+        const best = enhancedRoutes.reduce((prev: any, current: any) => 
           (parseFloat(prev.gasCostUSD || '999')) < (parseFloat(current.gasCostUSD || '999')) ? prev : current
         )
         setBestRoute(best)
@@ -207,12 +230,17 @@ export function EnhancedPaymentSelector({
 
       console.log('Executing cross-chain payment via LiFi')
       
-      const fromAmount = ethers.parseUnits(splitAmount, selectedToken.decimals).toString()
+      // Use the calculated amount from the route, not the fixed splitAmount
+      const calculatedAmount = bestRoute.calculatedFromAmount
+      const fromAmount = ethers.parseUnits(calculatedAmount, selectedToken.decimals).toString()
+      
       console.log('Payment parameters:', {
         fromChainId: selectedNetwork,
         fromTokenAddress: selectedToken.address,
         fromAmount: fromAmount,
-        fromAmountFormatted: `${splitAmount} ${selectedToken.symbol}`,
+        fromAmountFormatted: `${calculatedAmount} ${selectedToken.symbol}`,
+        originalSplitAmount: splitAmount,
+        calculatedAmount: calculatedAmount,
         fromAddress: account,
         toChainId: creatorChainId,
         toTokenAddress: creatorTokenAddress,
@@ -248,7 +276,10 @@ export function EnhancedPaymentSelector({
       console.log('Starting direct transfer...')
       console.log('Selected token:', selectedToken)
       console.log('Creator address:', creatorAddress)
-      console.log('Split amount:', splitAmount)
+      
+      // Use calculated amount from bestRoute, not fixed splitAmount
+      const amountToPay = bestRoute.calculatedFromAmount || splitAmount
+      console.log('Amount to pay:', amountToPay)
 
       const provider = await getProvider()
       const signer = await getSigner()
@@ -259,7 +290,7 @@ export function EnhancedPaymentSelector({
 
       console.log('Provider and signer obtained successfully')
 
-      const amount = ethers.parseUnits(splitAmount, selectedToken.decimals)
+      const amount = ethers.parseUnits(amountToPay, selectedToken.decimals)
       console.log('Parsed amount:', amount.toString())
 
       let txHash = ''
@@ -344,11 +375,11 @@ export function EnhancedPaymentSelector({
           Choose Payment Network & Token
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Pay ${splitAmount} from any supported network to {NETWORK_NAMES[creatorChainId as keyof typeof NETWORK_NAMES]}
+          Target amount: <span className="font-medium">${splitAmount}</span> to {NETWORK_NAMES[creatorChainId as keyof typeof NETWORK_NAMES]}
           {/* Show what the receiver will get */}
           <br />
           <span className="text-green-600 font-medium">
-            Receiver gets their preferred token automatically via cross-chain routing
+            🚀 Li.Fi will calculate the exact amount you need to pay for optimal routing
           </span>
         </p>
       </CardHeader>
@@ -450,7 +481,15 @@ export function EnhancedPaymentSelector({
                 <div className="text-xs text-green-700 space-y-1">
                   <p>via {bestRoute.toolDetails?.name || bestRoute.tool}</p>
                   <p>Gas cost: ~${bestRoute.gasCostUSD}</p>
-                  <p>Estimated time: {bestRoute.estimatedDuration}s</p>
+                  <p>Estimated time: {bestRoute.estimatedDuration || 0}s</p>
+                  {bestRoute.calculatedFromAmount && (
+                    <div className="pt-2 border-t border-green-300">
+                      <p className="font-medium">You'll pay: {parseFloat(bestRoute.calculatedFromAmount).toFixed(6)} {selectedToken.symbol}</p>
+                      {bestRoute.fromAmountUSD && bestRoute.toAmountUSD && (
+                        <p className="text-xs">≈ ${bestRoute.fromAmountUSD} → ${bestRoute.toAmountUSD}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -480,6 +519,8 @@ export function EnhancedPaymentSelector({
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Processing Payment...
                   </>
+                ) : bestRoute?.calculatedFromAmount ? (
+                  `Pay ${parseFloat(bestRoute.calculatedFromAmount).toFixed(6)} ${selectedToken.symbol}`
                 ) : (
                   `Pay ${splitAmount} ${selectedToken.symbol}`
                 )}
@@ -489,12 +530,13 @@ export function EnhancedPaymentSelector({
         )}
 
         {/* Balance Warning */}
-        {selectedToken && userBalances[selectedToken.symbol] && 
-         parseFloat(userBalances[selectedToken.symbol]) < parseFloat(splitAmount) && (
+        {selectedToken && userBalances[selectedToken.symbol] && bestRoute?.calculatedFromAmount &&
+         parseFloat(userBalances[selectedToken.symbol]) < parseFloat(bestRoute.calculatedFromAmount) && (
           <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <span className="text-sm text-orange-800">
-              Insufficient balance. You have {parseFloat(userBalances[selectedToken.symbol]).toFixed(4)} {selectedToken.symbol}
+              Insufficient balance. You have {parseFloat(userBalances[selectedToken.symbol]).toFixed(4)} {selectedToken.symbol}, 
+              need {parseFloat(bestRoute.calculatedFromAmount).toFixed(6)} {selectedToken.symbol}
             </span>
           </div>
         )}
