@@ -109,7 +109,7 @@ export function usePaymentRequest() {
       // Intentar abrir la wallet automáticamente
       if (window.ethereum) {
         // Para MetaMask y wallets compatibles
-        const accounts = await window.ethereum.request({ 
+        const accounts = await (window.ethereum as any).request({ 
           method: 'eth_requestAccounts' 
         })
         

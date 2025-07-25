@@ -1,12 +1,20 @@
 "use client"
 
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { LIFI_CONFIG } from '@/lib/lifi-config'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { toast } from 'sonner'
 
 export function useNetworkValidator() {
-  const { chainId, switchNetwork } = usePrivyWeb3()
+  const { getChainId } = usePrivyWeb3()
+  const [chainId, setChainId] = useState<number | null>(null)
+
+  // Get chain ID on mount and when context changes
+  useEffect(() => {
+    if (getChainId) {
+      getChainId().then(setChainId)
+    }
+  }, [getChainId])
 
   const isNetworkSupported = useCallback((networkId: number) => {
     return Object.values(LIFI_CONFIG.supportedNetworks).some(
@@ -14,34 +22,30 @@ export function useNetworkValidator() {
     )
   }, [])
 
-  const validateAndSwitchNetwork = useCallback(async (requiredChainId: number) => {
+  const validateNetwork = useCallback(async (requiredChainId: number) => {
     if (!isNetworkSupported(requiredChainId)) {
       toast.error(`Red no soportada. Redes soportadas: ${Object.values(LIFI_CONFIG.supportedNetworks).map(n => n.name).join(', ')}`)
       return false
     }
 
-    if (chainId !== requiredChainId) {
-      try {
-        await switchNetwork(requiredChainId)
-        const networkName = Object.values(LIFI_CONFIG.supportedNetworks).find(n => n.chainId === requiredChainId)?.name || 'red requerida'
-        toast.success(`Cambiado a ${networkName}`)
-        return true
-      } catch (error) {
-        toast.error('Error al cambiar de red')
-        return false
-      }
+    const currentChainId = await getChainId()
+    if (currentChainId !== requiredChainId) {
+      const networkName = Object.values(LIFI_CONFIG.supportedNetworks).find(n => n.chainId === requiredChainId)?.name || 'red requerida'
+      toast.error(`Por favor, cambia a la red ${networkName} en tu wallet`)
+      return false
     }
 
     return true
-  }, [chainId, switchNetwork, isNetworkSupported])
+  }, [getChainId, isNetworkSupported])
 
   const getSupportedNetworks = useCallback(() => {
     return Object.values(LIFI_CONFIG.supportedNetworks)
   }, [])
 
   return {
+    chainId,
     isNetworkSupported,
-    validateAndSwitchNetwork,
+    validateNetwork,
     getSupportedNetworks
   }
 } 

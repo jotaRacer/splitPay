@@ -29,13 +29,15 @@ export function LifiPaymentButton({
   const { account, getSigner, getProvider } = usePrivyWeb3()
   const { checkAvailableRoutes, paymentState, clearPaymentState, processPayment } = useLifiPayment()
   const { executePaymentRequest, state: paymentRequestState } = usePaymentRequest()
-  const { validateAndSwitchNetwork, isNetworkSupported } = useNetworkValidator()
+  const { validateNetwork, isNetworkSupported, chainId } = useNetworkValidator()
   const [isProcessing, setIsProcessing] = useState(false)
   const [balance, setBalance] = useState<string>('0')
   const [hasInsufficientBalance, setHasInsufficientBalance] = useState(false)
-  const [currentChainId, setCurrentChainId] = useState<number | null>(null)
   const [calculatedAmount, setCalculatedAmount] = useState<string>(splitAmount)
   const [isLoadingQuote, setIsLoadingQuote] = useState(false)
+
+  // Use chainId from validator instead of local state
+  const currentChainId = chainId
 
   // Check balance when account or chainId changes
   useEffect(() => {
@@ -54,9 +56,9 @@ export function LifiPaymentButton({
           return
         }
 
-        // Obtener chainId actual
+        // Obtener chainId actual (now using from validator hook)
         const network = await provider.getNetwork()
-        setCurrentChainId(Number(network.chainId))
+        // chainId is now managed by the validator hook
 
         const balanceWei = await provider.getBalance(account)
         const balanceEth = ethers.formatEther(balanceWei)
@@ -182,7 +184,7 @@ export function LifiPaymentButton({
 
       // For cross-chain transfers, continue with Li.Fi
       // Validar y cambiar de red si es necesario
-      const networkValid = await validateAndSwitchNetwork(currentChainId)
+      const networkValid = await validateNetwork(currentChainId)
       if (!networkValid) {
         setIsProcessing(false)
         return

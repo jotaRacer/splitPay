@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
@@ -15,12 +15,20 @@ import { Loader2 } from "lucide-react"
 
 export default function SetupPage() {
   const router = useRouter()
-  const { isConnected, account, chainId } = usePrivyWeb3()
+  const { isConnected, account, getChainId } = usePrivyWeb3()
   const { isLoading, estimateGas } = useWeb3Transactions()
   const [recipients, setRecipients] = useState<string[]>([''])
   const [amounts, setAmounts] = useState<string[]>([''])
   const [splitName, setSplitName] = useState('')
   const [gasEstimate, setGasEstimate] = useState<string | null>(null)
+  const [chainId, setChainId] = useState<number | null>(null)
+
+  // Fetch chain ID when connected
+  useEffect(() => {
+    if (isConnected && getChainId) {
+      getChainId().then(setChainId)
+    }
+  }, [isConnected, getChainId])
 
   const addRecipient = () => {
     setRecipients([...recipients, ''])

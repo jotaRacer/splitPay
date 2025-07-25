@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 
@@ -19,9 +19,17 @@ export interface Transaction {
 }
 
 export function useWeb3Transactions() {
-  const { account, chainId, getSigner, getProvider } = usePrivyWeb3()
+  const { account, getChainId, getSigner, getProvider } = usePrivyWeb3()
   const [isLoading, setIsLoading] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [chainId, setChainId] = useState<number | null>(null)
+
+  // Get chain ID on mount
+  useEffect(() => {
+    if (getChainId) {
+      getChainId().then(setChainId)
+    }
+  }, [getChainId])
 
   const sendTransaction = async (to: string, amount: string, memo?: string) => {
     if (!account) {

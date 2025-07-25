@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePrivyWeb3 } from '@/contexts/privy-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,16 @@ import { getNetworkByChainId, getFaucetsForChainId, isTestnetChainId } from '@/l
 import { toast } from 'sonner'
 
 export function TestnetHelper() {
-  const { chainId, account } = usePrivyWeb3()
+  const { getChainId, account } = usePrivyWeb3()
+  const [chainId, setChainId] = useState<number | null>(null)
   const [copiedAddress, setCopiedAddress] = useState(false)
+
+  // Get chain ID on mount
+  useEffect(() => {
+    if (getChainId) {
+      getChainId().then(setChainId)
+    }
+  }, [getChainId])
 
   if (!chainId || !isTestnetChainId(chainId)) {
     return null // Only show on testnets

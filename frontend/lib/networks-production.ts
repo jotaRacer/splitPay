@@ -69,5 +69,5 @@ export const getNetworkByChainId = (chainId: number): Network | undefined => {
 }
 
 export const isValidChainId = (chainId: number): boolean => {
-  return getSupportedChainIds().includes(chainId)
+  return getSupportedChainIds().includes(chainId as any)
 }
