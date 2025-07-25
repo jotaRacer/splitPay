@@ -22,7 +22,12 @@ const limiter = rateLimit({
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'https://splitpay-frontend.vercel.app',
+    'https://splitpay.vercel.app',
+    'https://splitpay-git-main-jotaracer.vercel.app'
+  ],
   credentials: true
 }));
 app.use(limiter);
