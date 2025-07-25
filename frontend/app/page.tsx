@@ -1,6 +1,6 @@
 "use client"
 
-import React, { memo, useCallback, useState } from "react"
+import React, { memo, useCallback } from "react"
 import { MobileHeader } from "@/components/mobile-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { ResponsiveButton } from "@/components/ui/responsive-button"
@@ -10,14 +10,10 @@ import { useRouter } from "next/navigation"
 // Memoize the entire page component for better performance
 const HomePage = memo(function HomePage() {
   const router = useRouter()
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
   // Memoize navigation callbacks to prevent unnecessary re-renders
   const navigateToCreate = useCallback(() => router.push("/create"), [router])
   const navigateToJoin = useCallback(() => router.push("/join"), [router])
-  const navigateToWalletTest = useCallback(() => router.push("/wallet-test"), [router])
-  const navigateToTestnet = useCallback(() => router.push("/testnet"), [router])
-  const toggleAdvanced = useCallback(() => setShowAdvanced(!showAdvanced), [showAdvanced])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,52 +75,6 @@ const HomePage = memo(function HomePage() {
             </CardContent>
           </Card>
         </section>
-
-        {/* Advanced Features Toggle */}
-        <section className="text-center">
-          <ResponsiveButton 
-            variant="outline"
-            onClick={toggleAdvanced}
-            className="w-full sm:w-auto"
-          >
-            {showAdvanced ? 'Hide' : 'Show'} Advanced Features
-          </ResponsiveButton>
-        </section>
-
-        {/* Advanced Features - Loaded only when needed */}
-        {showAdvanced && (
-          <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-center">🔗 Advanced Features</h2>
-            <Card className="border-2">
-              <CardContent className="p-4 sm:p-6 text-center">
-                <div className="flex flex-col items-center space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold">Test & Development</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Access advanced features for testing and development
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <ResponsiveButton 
-                      size="sm"
-                      variant="outline"
-                      onClick={navigateToWalletTest}
-                    >
-                      Wallet Test
-                    </ResponsiveButton>
-                    <ResponsiveButton 
-                      size="sm"
-                      variant="outline"
-                      onClick={navigateToTestnet}
-                    >
-                      Testnet
-                    </ResponsiveButton>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        )}
       </main>
     </div>
   )

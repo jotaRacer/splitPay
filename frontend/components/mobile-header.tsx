@@ -1,6 +1,6 @@
 "use client"
 
-import { Wallet, Code, Menu, X } from "lucide-react"
+import { Wallet, Menu, X } from "lucide-react"
 import { usePrivyWeb3 } from "@/contexts/privy-context"
 import { useState } from "react"
 import Link from "next/link"
@@ -23,17 +23,6 @@ export function MobileHeader() {
               <span className="text-responsive-xl font-bold">Split Pay</span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-4">
-              <Link 
-                href="/testnet" 
-                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <Code className="h-4 w-4" />
-                Testnet
-              </Link>
-            </nav>
-
             {/* Mobile Menu Button */}
             <Button
               variant="ghost"
@@ -51,14 +40,7 @@ export function MobileHeader() {
       {isMenuOpen && (
         <div className="md:hidden border-b bg-background">
           <div className="container-fluid py-4 space-y-2">
-            <Link
-              href="/testnet"
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Code className="h-4 w-4" />
-              Testnet
-            </Link>
+            {/* Menú móvil vacío - se puede agregar contenido futuro aquí */}
           </div>
         </div>
       )}
