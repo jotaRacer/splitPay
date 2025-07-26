@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://respectful-forgiveness-production.up.railway.app/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api';
 
 export interface CreateSplitData {
   name: string;
@@ -147,7 +147,7 @@ class ApiService {
     });
   }
 
-  // Obtener estadísticas (para debugging)
+  // Get statistics
   async getStats(): Promise<ApiResponse<any>> {
     return this.request<any>('/splits/stats');
   }

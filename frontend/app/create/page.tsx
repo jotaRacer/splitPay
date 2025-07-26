@@ -82,10 +82,7 @@ const CreateSplitPage = memo(function CreateSplitPage() {
         receiverTokenDecimals: receiverPreferences.tokenDecimals
       }
 
-      console.log('Creating split with data:', splitData)
-      
       const response = await apiService.createSplit(splitData)
-      console.log('Create split response:', response)
 
       if (response.success && response.data) {
         // Navigate to success page with split data
@@ -95,7 +92,6 @@ const CreateSplitPage = memo(function CreateSplitPage() {
         throw new Error(response.message || 'Failed to create split')
       }
     } catch (error: any) {
-      console.error('Error creating split:', error)
       setErrors({ submit: error.message || 'Failed to create split' })
     } finally {
       setIsLoading(false)

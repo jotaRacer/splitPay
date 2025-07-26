@@ -1,11 +1,12 @@
 "use client"
 
-import { createContext, useContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react'
 import { PrivyProvider, usePrivy, useWallets } from '@privy-io/react-auth'
 import { ethers } from 'ethers'
 
 interface PrivyWeb3ContextType {
   account: string | null
+  chainId: number | null // Add synchronous chainId access
   isConnected: boolean
   connect: () => void
   disconnect: () => void
@@ -14,10 +15,16 @@ interface PrivyWeb3ContextType {
   getProvider: () => Promise<ethers.BrowserProvider | null>
   getSigner: () => Promise<ethers.Signer | null>
   getBalance: () => Promise<string | null>
-  getChainId: () => Promise<number | null>
+  getChainId: () => Promise<number | null> // Keep async for backward compatibility
+  getAccount: () => Promise<string | null> // Add async account method
 }
 
 const PrivyWeb3Context = createContext<PrivyWeb3ContextType | null>(null)
+
+// Stable wrapper component to prevent hydration issues
+function StableChildrenWrapper({ children }: { children: ReactNode }) {
+  return <>{children}</>
+}
 
 // Inner component that uses Privy hooks
 function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
@@ -28,12 +35,56 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
   // Memoize the primary wallet to prevent unnecessary re-renders
   const wallet = useMemo(() => wallets?.[0] || null, [wallets])
 
-  // Optimize debug logging - only log when values actually change
+  // Synchronous state for immediate access - this prevents slow async calls
+  const [chainId, setChainId] = useState<number | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const [account, setAccount] = useState<string | null>(null)
+
+  // Initialize wallet data once when ready
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Privy state:', { ready, authenticated, user: !!user, wallets: wallets?.length || 0 })
+    let mounted = true
+
+    const initializeWalletData = async () => {
+      if (!ready || !authenticated || !wallet) {
+        if (mounted) {
+          setIsConnected(false)
+          setAccount(null)
+          setChainId(null)
+        }
+        return
+      }
+
+      try {
+        const provider = await wallet.getEthereumProvider()
+        const [accounts, currentChainId] = await Promise.all([
+          provider.request({ method: 'eth_accounts' }),
+          provider.request({ method: 'eth_chainId' })
+        ])
+
+        if (mounted) {
+          const userAccount = accounts[0] || null
+          const numericChainId = parseInt(currentChainId, 16)
+          
+          setAccount(userAccount)
+          setChainId(numericChainId)
+          setIsConnected(authenticated && !!userAccount)
+        }
+      } catch (error) {
+        console.error('Failed to initialize wallet data:', error)
+        if (mounted) {
+          setIsConnected(false)
+          setAccount(null)
+          setChainId(1) // Default to mainnet
+        }
+      }
     }
-  }, [ready, authenticated, user, wallets?.length])
+
+    initializeWalletData()
+
+    return () => {
+      mounted = false
+    }
+  }, [ready, authenticated, wallet])
 
   // Optimize force ready timeout - only run if actually needed
   useEffect(() => {
@@ -82,22 +133,41 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
     }
   }, [getProvider, wallet?.address])
 
-  const getChainId = useCallback(async () => {
+  // Keep async getChainId for backward compatibility, but make it fast
+  const getChainIdAsync = useCallback(async () => {
+    // Return cached value immediately if available
+    if (chainId !== null) return chainId
+    
+    // Otherwise try to get it fresh
     const provider = await getProvider()
-    if (!provider) return null
+    if (!provider) return 1 // Default to mainnet
     try {
       const network = await provider.getNetwork()
-      return Number(network.chainId)
+      const networkChainId = Number(network.chainId)
+      setChainId(networkChainId) // Update cache
+      return networkChainId
     } catch (error) {
       console.error('Failed to get chain ID:', error)
-      return null
+      return 1 // Default to mainnet
     }
-  }, [getProvider])
+  }, [getProvider, chainId])
+
+  // Keep async getAccount for backward compatibility
+  const getAccountAsync = useCallback(async () => {
+    // Return cached value immediately if available
+    if (account !== null) return account
+    
+    // Otherwise try to get it fresh
+    if (!wallet) return null
+    return wallet.address || null
+  }, [account, wallet])
 
   // Memoize context value to prevent unnecessary re-renders of consuming components
   const contextValue = useMemo<PrivyWeb3ContextType>(() => ({
-    account: wallet?.address || null,
-    isConnected: authenticated && !!wallet,
+    // Provide synchronous access to wallet data - this is the key performance improvement!
+    account: account,
+    chainId: chainId,
+    isConnected: isConnected,
     connect: login,
     disconnect: logout,
     isLoading: !ready && !forceReady,
@@ -105,11 +175,13 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
     getProvider,
     getSigner,
     getBalance,
-    getChainId,
+    // Provide both sync and async access
+    getChainId: getChainIdAsync,
+    getAccount: getAccountAsync,
   }), [
-    wallet?.address,
-    authenticated,
-    wallet,
+    account,
+    chainId, 
+    isConnected,
     login,
     logout,
     ready,
@@ -118,12 +190,13 @@ function PrivyWeb3ProviderInner({ children }: { children: ReactNode }) {
     getProvider,
     getSigner,
     getBalance,
-    getChainId
+    getChainIdAsync,
+    getAccountAsync
   ])
 
   return (
     <PrivyWeb3Context.Provider value={contextValue}>
-      {children}
+      <StableChildrenWrapper>{children}</StableChildrenWrapper>
     </PrivyWeb3Context.Provider>
   )
 }
@@ -147,7 +220,7 @@ export function PrivyWeb3Provider({ children }: { children: ReactNode }) {
         }
       }}
     >
-      <PrivyWeb3ProviderInner>
+      <PrivyWeb3ProviderInner key="privy-inner">
         {children}
       </PrivyWeb3ProviderInner>
     </PrivyProvider>

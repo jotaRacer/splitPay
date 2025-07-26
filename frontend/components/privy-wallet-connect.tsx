@@ -75,7 +75,7 @@ export const PrivyWalletConnect = memo(function PrivyWalletConnect() {
 
   const currentNetwork = Object.values(SUPPORTED_NETWORKS).find(n => n.chainId === chainId)
 
-  // Network switching function (similar to testnet-switcher)
+  // Network switching function
   const switchNetwork = async (targetChainId: number) => {
     const provider = await getProvider()
     if (!provider) throw new Error('No provider available')

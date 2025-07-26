@@ -13,33 +13,48 @@ import { usePrivyWeb3 } from "@/contexts/privy-context"
 import { Loader2, Users, DollarSign, Clock, CheckCircle, AlertTriangle, Wallet, Network } from "lucide-react"
 import { toast } from 'sonner'
 
+// Function to normalize backend split data to frontend format
+const normalizeSplitData = (backendSplit: any): Split => {
+  // Transform participants from backend format to frontend format
+  const normalizedParticipants = Array.isArray(backendSplit.participantsList) 
+    ? backendSplit.participantsList.map((p: any) => ({
+        address: p.address || p.user?.wallet_address || p.wallet_address || '',
+        chain: p.chain || '1',
+        amount: p.amount || 0,
+        paid: p.paid || false,
+        paidAt: p.paidAt || p.paid_at || null,
+        transactionHash: p.transactionHash || p.transaction_hash || null
+      }))
+    : []
+
+  // Transform creator from backend format
+  const creatorAddress = typeof backendSplit.creator === 'string' 
+    ? backendSplit.creator 
+    : backendSplit.creator?.wallet_address || ''
+
+  return {
+    ...backendSplit,
+    creator: creatorAddress,
+    participantsList: normalizedParticipants
+  }
+}
+
 // Enhanced payment selector with optimized loading
 const EnhancedPaymentSelector = dynamic(() => 
   import("@/components/enhanced-payment-selector").then(m => ({ default: m.EnhancedPaymentSelector })), 
   { 
     loading: () => (
-      <Card className="w-full">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-center space-x-3 py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-              <div className="text-center">
-                <div className="font-medium text-lg">Loading Payment System</div>
-                <div className="text-sm text-gray-500 mt-1">
-                  Initializing cross-chain payment options...
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+        <span className="ml-2">Loading payment system...</span>
+      </div>
     ),
     ssr: false 
   }
 )
 
 interface JoinSplitState {
-  step: 'input' | 'loading' | 'details' | 'payment' | 'success'
+  step: 'input' | 'loading' | 'details' | 'payment' | 'success' | 'splitFull'
   splitInfo: Split | null
   participantId: string | null
   error: string | null
@@ -48,7 +63,7 @@ interface JoinSplitState {
 export default function JoinSplitPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { isConnected, account, connect } = usePrivyWeb3()
+  const { isConnected, account, chainId, connect } = usePrivyWeb3() // Use synchronous chainId
   
   // State management
   const [joinToken, setJoinToken] = useState("")
@@ -73,33 +88,33 @@ export default function JoinSplitPage() {
 
     setState(prev => ({ ...prev, step: 'loading', error: null }))
 
+    let split: Split | null = null
+
     try {
-      console.log("🔍 Looking up split with token:", tokenToUse)
-      
       // First, get split information
       const splitResponse = await apiService.getSplitByToken(tokenToUse)
-      console.log("📊 Split response:", splitResponse)
       
       if (!splitResponse.success || !splitResponse.data) {
         throw new Error(splitResponse.message || "Split not found. Please check the token and try again.")
       }
 
-      const split = splitResponse.data
-      console.log("✅ Split found:", split)
+      split = normalizeSplitData(splitResponse.data)
 
       // Check if user is already a participant
-      const existingParticipant = Array.isArray(split.participantsList) 
-        ? split.participantsList.find((p: any) => 
-            p.address?.toLowerCase() === account.toLowerCase()
-          )
-        : null
+      let existingParticipant = null
+      if (Array.isArray(split.participantsList)) {
+        existingParticipant = split.participantsList.find((p: any) => {
+          // Now we can safely use the normalized address field
+          return typeof p.address === 'string' && typeof account === 'string' &&
+            p.address.toLowerCase() === account.toLowerCase()
+        })
+      }
 
       if (existingParticipant) {
-        console.log("👤 User is already a participant:", existingParticipant)
         setState({
           step: 'payment',
           splitInfo: split,
-          participantId: existingParticipant.address,
+          participantId: existingParticipant.address || account,
           error: null
         })
         toast.success("Welcome back! You can now complete your payment.")
@@ -107,24 +122,30 @@ export default function JoinSplitPage() {
       }
 
       // Add user as a new participant
-      console.log("➕ Adding user as new participant...")
       const joinResponse = await apiService.joinSplit({
         token: tokenToUse,
         participantAddress: account,
         participantChain: "1" // Default to Ethereum - could be made dynamic
       })
 
-      console.log("🎉 Join response:", joinResponse)
-
       if (joinResponse.success && joinResponse.data) {
+        // Normalize the join response data
+        const normalizedSplit = normalizeSplitData(joinResponse.data)
+        
+        // Find the current user's participant ID after joining
+        let newParticipantId = account
+        if (Array.isArray(normalizedSplit.participantsList)) {
+          const newParticipant = normalizedSplit.participantsList.find((p: any) => 
+            typeof p.address === 'string' && typeof account === 'string' &&
+            p.address.toLowerCase() === account.toLowerCase()
+          )
+          newParticipantId = newParticipant?.address || account
+        }
+
         setState({
           step: 'payment',
-          splitInfo: joinResponse.data,
-          participantId: Array.isArray(joinResponse.data.participantsList) 
-            ? joinResponse.data.participantsList.find((p: any) => 
-                p.address?.toLowerCase() === account.toLowerCase()
-              )?.address || null
-            : null,
+          splitInfo: normalizedSplit,
+          participantId: newParticipantId,
           error: null
         })
         toast.success("Successfully joined the split! You can now make your payment.")
@@ -133,8 +154,23 @@ export default function JoinSplitPage() {
       }
 
     } catch (error: any) {
-      console.error("❌ Error joining split:", error)
       const errorMessage = error.message || "Failed to join split. Please check the token and try again."
+      
+      // Check if the error is specifically about the split being full
+      if (errorMessage.toLowerCase().includes('full') || errorMessage.toLowerCase().includes('capacity')) {
+        // For split full error, show the split info but don't allow joining
+        if (split) {
+          setState({
+            step: 'splitFull',
+            splitInfo: split, // split is already normalized
+            participantId: null,
+            error: errorMessage
+          })
+          toast.error("This split is full and cannot accept new participants.")
+          return
+        }
+      }
+      
       setState(prev => ({ 
         ...prev, 
         step: 'input', 
@@ -152,15 +188,14 @@ export default function JoinSplitPage() {
     }
   }, [searchParams])
 
-  // Auto-join if wallet is connected and token is available
+  // Auto-join if wallet is connected and token is available - but only if not already processed
   useEffect(() => {
-    if (joinToken && isConnected && account && state.step === 'input') {
+    if (joinToken && isConnected && account && state.step === 'input' && !state.error) {
       handleJoinSplit(joinToken)
     }
-  }, [joinToken, isConnected, account, state.step])
+  }, [joinToken, isConnected, account, state.step, state.error, handleJoinSplit])
 
   const handlePaymentSuccess = (txHash: string) => {
-    console.log("💰 Payment successful with transaction:", txHash)
     setState(prev => ({ ...prev, step: 'success' }))
     toast.success("Payment completed successfully!")
     
@@ -275,7 +310,21 @@ export default function JoinSplitPage() {
     if (!state.splitInfo) return null
 
     const split = state.splitInfo
-    const isCreator = split.creator?.toLowerCase() === account?.toLowerCase()
+    
+    // Defensive coding for creator comparison and address extraction
+    let isCreator = false
+    let creatorAddress = ""
+    try {
+      // With normalized data, creator should always be a string address
+      creatorAddress = split.creator || ""
+      
+      if (creatorAddress && account && typeof account === 'string') {
+        isCreator = creatorAddress.toLowerCase() === account.toLowerCase()
+      }
+    } catch (error) {
+      isCreator = false
+      creatorAddress = ""
+    }
 
     return (
       <>
@@ -323,8 +372,8 @@ export default function JoinSplitPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Status:</span>
-                  <Badge variant={isCreator ? "default" : "secondary"}>
-                    {isCreator ? "Creator" : "Participant"}
+                  <Badge variant="secondary">
+                    Participant
                   </Badge>
                 </div>
               </div>
@@ -370,44 +419,27 @@ export default function JoinSplitPage() {
         </Card>
 
         {/* Payment Section */}
-        {!isCreator && (
-          <Card className="border-2 border-blue-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-6 w-6" />
-                Complete Your Payment
-              </CardTitle>
-                              <p className="text-sm text-gray-600">
-                  Pay your ${(split.amount / split.participants).toFixed(2)} share using any supported cryptocurrency
-                </p>
-            </CardHeader>
-            <CardContent>
-              <EnhancedPaymentSelector
-                splitAmount={((split.amount / split.participants) || 0).toString()}
-                creatorAddress={split.creator || ""}
-                creatorChainId={parseInt(split.creatorChain || "1")}
-                creatorTokenAddress={split.receiverTokenAddress || "0x0000000000000000000000000000000000000000"}
-                className="w-full"
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Creator View */}
-        {isCreator && (
-          <Card className="border-2 border-green-200">
-            <CardContent className="p-6 text-center">
-              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">You're the Split Creator</h3>
-              <p className="text-gray-600 mb-4">
-                Share the split token with others so they can join and pay their share.
+        <Card className="border-2 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-6 w-6" />
+              Complete Your Payment
+            </CardTitle>
+                            <p className="text-sm text-gray-600">
+                Pay your ${(split.amount / split.participants).toFixed(2)} share using any supported cryptocurrency
               </p>
-              <div className="bg-gray-50 p-3 rounded-lg font-mono text-sm break-all">
-                {joinToken}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          </CardHeader>
+          <CardContent>
+            <EnhancedPaymentSelector
+              splitAmount={((split.amount / split.participants) || 0).toString()}
+              creatorAddress={creatorAddress || ""}
+              creatorChainId={parseInt(split.creatorChain || "1")}
+              creatorTokenAddress={split.receiverTokenAddress || "0x0000000000000000000000000000000000000000"}
+              className="w-full"
+            />
+          </CardContent>
+        </Card>
+
       </>
     )
   }
@@ -433,6 +465,108 @@ export default function JoinSplitPage() {
     </Card>
   )
 
+  const renderSplitFullStep = () => {
+    if (!state.splitInfo) return null
+
+    const split = state.splitInfo
+
+    return (
+      <>
+        {/* Split Overview - Read Only */}
+        <Card className="border-2 border-orange-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-6 w-6" />
+              {split.name || "Payment Split"}
+              <Badge variant="secondary" className="ml-2 bg-orange-100 text-orange-800">
+                FULL
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Split Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Amount:</span>
+                  <span className="font-semibold text-lg">${split.amount}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Participants:</span>
+                  <span className="font-medium">{split.participants}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Per Person:</span>
+                  <Badge variant="secondary" className="text-lg font-semibold px-3 py-1">
+                    ${(split.amount / split.participants).toFixed(2)}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {split.receiverTokenSymbol && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Creator receives:</span>
+                    <Badge variant="outline">{split.receiverTokenSymbol}</Badge>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Network:</span>
+                  <Badge variant="outline">
+                    <Network className="h-3 w-3 mr-1" />
+                    Chain {split.creatorChain}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Status:</span>
+                  <Badge variant="destructive">
+                    Split Full
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            {split.description && (
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Description</h4>
+                <p className="text-gray-700">{split.description}</p>
+              </div>
+            )}
+
+            {/* Full Message */}
+            <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+                <span className="font-medium text-orange-800">Split is Full</span>
+              </div>
+              <p className="text-sm text-orange-700 mt-1">
+                This split has reached its maximum capacity of {split.participants} participants and cannot accept new members.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => router.push('/create')}
+                className="flex-1"
+              >
+                Create New Split
+              </Button>
+              <Button 
+                onClick={() => setState(prev => ({ ...prev, step: 'input', error: null }))}
+                variant="outline"
+                className="flex-1"
+              >
+                Try Another Split
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <MobileHeader />
@@ -442,6 +576,7 @@ export default function JoinSplitPage() {
           {state.step === 'input' && renderInputStep()}
           {state.step === 'loading' && renderLoadingStep()}
           {state.step === 'payment' && renderPaymentStep()}
+          {state.step === 'splitFull' && renderSplitFullStep()}
           {state.step === 'success' && renderSuccessStep()}
         </div>
       </main>
