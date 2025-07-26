@@ -235,4 +235,4 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Made with ❤️ in Chile**
+**Made with ❤️ in 🌶️ by young 🧑‍🍳**
